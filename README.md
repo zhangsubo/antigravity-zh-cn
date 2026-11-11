@@ -1,23 +1,24 @@
 # Antigravity 简体中文汉化补丁
 
-[![Version](https://img.shields.io/badge/version-v0.1.1-blue)](https://github.com/TeacherXuAI/antigravity-zh-cn/releases/tag/v0.1.1)
-[![Tests](https://github.com/TeacherXuAI/antigravity-zh-cn/actions/workflows/test.yml/badge.svg)](https://github.com/TeacherXuAI/antigravity-zh-cn/actions/workflows/test.yml)
+[![Tests](https://github.com/zhangsubo/antigravity-zh-cn/actions/workflows/test.yml/badge.svg)](https://github.com/zhangsubo/antigravity-zh-cn/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-适用于 **Google Antigravity（反重力）Desktop** 的简体中文本地化补丁，提供常用设置翻译、中英文切换，以及原版应用的备份与还原。
+适用于 **Google Antigravity（反重力）Desktop** 的简体中文本地化补丁，提供全面界面汉化、中英文实时切换，以及原版应用的备份与还原。
 
-本项目由 **[徐老师AI / TeacherXuAI](https://github.com/TeacherXuAI)** 开发维护，采用 MIT 许可证开源，为非 Google 官方的社区项目。当前适配 **macOS 上的 Antigravity Desktop 2.22.0 / 2.23.0 / 2.29.1**，已在 Apple Silicon 设备上完成实机验证。
+本项目由 **[张小璋 / zhangsubo](https://github.com/zhangsubo)** 开发维护，采用 MIT 许可证开源，为非 Google 官方的社区项目。当前适配 **macOS 上的 Antigravity Desktop 2.22.0 / 2.23.0 / 2.29.1**，已在 Apple Silicon 设备上完成实机验证。
 
-**[下载最新版本](https://github.com/TeacherXuAI/antigravity-zh-cn/releases/latest) · [安装指南](#install) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/TeacherXuAI/antigravity-zh-cn/issues)**
+**[仓库主页](https://github.com/zhangsubo/antigravity-zh-cn) · [安装指南](#install) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/zhangsubo/antigravity-zh-cn/issues)**
 
 ## 功能特性
 
-- **设置本地化**：提供 92 条简体中文译文，覆盖通用、应用、外观、模型与用量设置页中的主要标签和说明，以及部分固定导航。
-- **中英文切换**：通过主界面右下角的开关启用或关闭汉化，关闭后恢复英文原文。
-- **安装校验**：安装前核对应用版本、入口文件指纹、文件完整性及原版签名。
-- **备份与还原**：保留完整原版应用及恢复记录，提供原版还原命令。
-
-汉化仅作用于指定界面区域，不翻译聊天内容、代码、输入框、项目名称或账号信息。当前版本尚未覆盖整个应用。
+- **深度界面汉化**：内置 **1,397 条**简体中文词条，覆盖：
+  - **设置中心**：通用（含语音模式）、应用、外观、快捷键、通知、模型与用量、对话等全部设置页与悬停说明；
+  - **主界面与导航**：侧边栏、项目选择器、主面板「自动化（Automations）」及「自定义配置（Customizations）」插件市场与已安装视图；
+  - **对话流与右侧面板**：权限审批卡片、计划审阅栏、思考折叠头，以及终端、代码变更（Diff）、内置浏览器、文件树外围工具栏；
+  - **macOS 原生组件**：会话右键菜单（含子菜单）、原生退出确认弹窗与状态栏托盘菜单。
+- **中英文实时切换**：通过主界面右下角的悬浮开关随时启用或关闭汉化，关闭后立即恢复英文原文。
+- **严格边界保护**：仅作用于受控界面控件，不翻译聊天正文、代码与 Diff 内容、输入框、命令参数、项目/分支名称、插件/技能专名或账号信息。
+- **安装校验与无损还原**：安装前核对应用版本、目标文件 SHA-256 指纹与签名完整性；完整保留原版应用备份与状态记录，随时一键还原。
 
 ## 汉化效果
 
@@ -87,27 +88,18 @@
 
 ## 安装指南
 
-### 1. 下载补丁
+### 1. 获取补丁
 
 请先从 [Google 官网](https://antigravity.google/download) 安装受支持版本的 Antigravity。
 
-打开 [v0.1.1 发布页](https://github.com/TeacherXuAI/antigravity-zh-cn/releases/tag/v0.1.1)，在 **Assets** 中下载 **antigravity-zh-cn-v0.1.1.zip**。解压后，在终端进入解压目录，后续命令均在该目录执行。
-
-若文件位于默认下载目录，可执行：
+通过 Git 克隆本仓库并在终端进入目录：
 
 ```bash
-cd ~/Downloads/antigravity-zh-cn-v0.1.1
-```
-
-<details>
-<summary>通过 Git 获取指定版本</summary>
-
-```bash
-git clone --branch v0.1.1 --depth 1 https://github.com/TeacherXuAI/antigravity-zh-cn.git
+git clone https://github.com/zhangsubo/antigravity-zh-cn.git
 cd antigravity-zh-cn
 ```
 
-</details>
+也可在 [Releases 页面](https://github.com/zhangsubo/antigravity-zh-cn/releases) 下载对应版本的源码压缩包，解压后在终端进入该目录。
 
 ### 2. 检查应用状态
 
@@ -183,11 +175,11 @@ npm run build
 
 ## 更新日志
 
-版本变更记录见 [CHANGELOG.md](CHANGELOG.md)。v0.1.1 为文档与版本标识修订，未调整词库、翻译逻辑、安装或还原流程。已安装 v0.1.0 的用户无需为本次文档修订重新安装补丁。
+版本变更记录见 [CHANGELOG.md](CHANGELOG.md) 与 [验证记录](docs/VALIDATION.md)。
 
 ## 问题反馈
 
-请通过 [GitHub Issues](https://github.com/TeacherXuAI/antigravity-zh-cn/issues) 提交安装问题、翻译修正或功能建议，并提供：
+请通过 [GitHub Issues](https://github.com/zhangsubo/antigravity-zh-cn/issues) 提交安装问题、翻译修正或功能建议，并提供：
 
 - macOS 版本、处理器类型及 Antigravity 版本。
 - 补丁版本、操作步骤和完整错误信息。
@@ -195,16 +187,10 @@ npm run build
 
 请勿提交账号凭据、邮箱、登录二维码、私人对话、完整应用文件或个人目录。相同问题优先补充到已有 Issue，便于集中排查。
 
-## 作者与交流
-
-维护者：**[徐老师AI / TeacherXuAI](https://github.com/TeacherXuAI)**。
-
-我平时分享 AI 模型测评、教程和各种好玩的智能产品，也会把自己做的小工具开源出来。抖音、视频号、小红书全平台同名，搜索 **「徐老师AI」** 即可找到。
-
-**微信：`XLSbenren`**。工具交流、使用体验或合作联系，添加时请备注「GitHub + 来意」。安装与翻译问题建议优先提交 Issue，方便其他用户查阅。
-
-如果项目对你有帮助，欢迎通过 **Star** 支持维护。版本通知可在 **Watch → Custom → Releases** 中订阅。项目可以直接下载使用，无需关注或添加微信。
-
 ## 许可证
 
-本项目原创代码采用 [MIT License](LICENSE)。Google Antigravity 的名称、图标、软件及相关权利归各自权利方所有。本项目由徐老师AI独立维护，不代表 Google。
+本项目代码采用 [MIT License](LICENSE)。Google Antigravity 的名称、图标、软件及相关权利归各自权利方所有。本项目为非官方社区维护项目，不代表 Google。
+
+## 致谢
+
+本项目基于原仓库 [TeacherXuAI/antigravity-zh-cn](https://github.com/TeacherXuAI/antigravity-zh-cn) 演进开发，感谢原作者提供的早期架构与基础词库支持。
