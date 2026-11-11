@@ -130,20 +130,35 @@ def inspect(app):
         raise ValueError('Bundle ASAR integrity does not match')
     preload = archive.read(rule['entry'])
     patched = MARKER in preload
-    if not patched and digest(preload) != rule['preload_sha256']:
-        raise ValueError('Unknown preload fingerprint; refusing to patch')
+    if not patched:
+        if digest(preload) != rule['preload_sha256']:
+            raise ValueError('Unknown preload fingerprint; refusing to patch')
+        for path, spec in rule.get('text_patches', {}).items():
+            raw_entry = archive.read(path)
+            if digest(raw_entry) != spec['sha256']:
+                raise ValueError('Unknown ' + path + ' fingerprint; refusing to patch')
+            text = raw_entry.decode('utf-8')
+            for old, _ in spec['replacements']:
+                if text.count(old) != 1:
+                    raise ValueError('Expected exact match in ' + path + '; refusing to patch')
+    else:
+        for path in rule.get('text_patches', {}):
+            archive.read(path)
     return {'version': version, 'archive': archive, 'rule': rule, 'plist': plist,
             'asar_sha256': digest(raw), 'patched': patched, 'app': app}
 
 
 def report(info):
     backup, state = paths(info['app'])
+    scope = 'Settings, navigation, Automations, approval & panel toolbars'
+    if info['rule'].get('text_patches'):
+        scope += '; native quit dialog & tray'
     return {'app': str(info['app']), 'version': info['version'],
             'patched': info['patched'], 'asar_sha256': info['asar_sha256'],
             'translations': len(json.loads((ROOT / 'locales/zh-CN.json').read_text())),
             'backup': str(backup), 'state_present': state.exists(),
             'native_ui_tested': info['rule']['native_ui_tested'],
-            'scope': 'Settings: General, Application, Appearance, Models; fixed navigation',
+            'scope': scope,
             'signature_effect': 'local ad-hoc outer signature and explicit app-scoped library-validation exception'}
 
 
@@ -167,11 +182,24 @@ def patch_bundle(app):
     if info['patched']:
         raise ValueError('Already patched')
     entry = info['rule']['entry']
-    payload = info['archive'].read(entry) + b'\n' + build() + b'\n'
-    archive_bytes = info['archive'].replace(entry, payload)
-    rebuilt = Archive(archive_bytes)
-    if rebuilt.read(entry) != payload:
-        raise ValueError('Rebuilt archive verification failed')
+    updates = {}
+    for path, spec in info['rule'].get('text_patches', {}).items():
+        text = info['archive'].read(path).decode('utf-8')
+        for old, new in spec['replacements']:
+            if text.count(old) != 1:
+                raise ValueError('Expected exact match in ' + path)
+            text = text.replace(old, new, 1)
+        updates[path] = text.encode('utf-8')
+    base_preload = updates.get(entry, info['archive'].read(entry))
+    updates[entry] = base_preload + b'\n' + build() + b'\n'
+    rebuilt = info['archive']
+    archive_bytes = None
+    for path, payload in updates.items():
+        archive_bytes = rebuilt.replace(path, payload)
+        rebuilt = Archive(archive_bytes)
+    for path, payload in updates.items():
+        if rebuilt.read(path) != payload:
+            raise ValueError('Rebuilt archive verification failed')
     plist = info['plist']
     plist['ElectronAsarIntegrity']['Resources/app.asar']['hash'] = digest(rebuilt.raw_header)
     (app / 'Contents/Resources/app.asar').write_bytes(archive_bytes)

@@ -13,6 +13,44 @@
       "preload_sha256": "81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60",
       "entry": "dist/preload.js",
       "native_ui_tested": true
+    },
+    "2.29.1": {
+      "preload_sha256": "2f4348c24fa6feeba6fef81644603304667b43a446b3887370781e90ec37ca2c",
+      "entry": "dist/preload.js",
+      "native_ui_tested": true,
+      "text_patches": {
+        "dist/preload.js": {
+          "sha256": "2f4348c24fa6feeba6fef81644603304667b43a446b3887370781e90ec37ca2c",
+          "replacements": [
+            [
+              "showContextMenu: (items) => electron_1.ipcRenderer.invoke('window:show-context-menu', items),",
+              "showContextMenu: (items) => electron_1.ipcRenderer.invoke('window:show-context-menu', globalThis.__teacherxu_antigravity_zh__ ? globalThis.__teacherxu_antigravity_zh__.translateMenu(items) : items),"
+            ]
+          ]
+        },
+        "dist/main.js": {
+          "sha256": "e5bf4ae92a586b222034c7de27e0e58dd8922deb0edc9649d290bc06182b2c6c",
+          "replacements": [
+            ["label: 'New Window',", "label: '新建窗口',"],
+            ["label: 'No agents running',", "label: '暂无运行中的智能体',"],
+            ["label: `Open ${electron_1.app.getName()}`,", "label: `打开 ${electron_1.app.getName()}`,"],
+            ["label: 'Quit',", "label: '退出',"],
+            ["buttons: ['Cancel', 'Quit'],", "buttons: ['取消', '退出'],"],
+            ["title: 'Confirm Quit',", "title: '确认退出',"],
+            ["message: 'Are you sure you want to quit?',", "message: '确定要退出吗？',"],
+            ["detail: 'There may be agents or background tasks running.',", "detail: '当前可能有智能体或后台任务正在运行。',"]
+          ]
+        },
+        "dist/tray.js": {
+          "sha256": "6c6b0968b45a1c7088e459657d57a9efd72d3733614349095f17b6ee94b47135",
+          "replacements": [
+            [
+              "(count > 0 ? `${count}` : 'No') +\n                    ' agent' +\n                    (count === 1 ? '' : 's') +\n                    ' running'",
+              "(count > 0 ? `${count} 个智能体正在运行` : '暂无运行中的智能体')"
+            ]
+          ]
+        }
+      }
     }
   }
 }

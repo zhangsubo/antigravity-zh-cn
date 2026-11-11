@@ -1,5 +1,16 @@
 # 验证记录
 
+## 2026-11-11：2.29.1 版本适配与方案 C 扩展验证
+
+- 完成 Antigravity Desktop 2.29.1 常规适配与方案 C（P0 + P1 + P2）扩展，词库扩充至 1,397 条。
+- 覆盖范围扩展至：设置页（含语音模式、对话设置与快捷键新增项）、主面板独立「自动化（Automations）」与「自定义配置（Customizations）」市场/已安装页、对话流权限审批卡片（严格结构校验）、右侧面板外围工具栏（终端、Diff、内置浏览器、文件树）、Electron 原生右键菜单（通过 `preload.js` 的 `showContextMenu` 拦截转发，支持语言开关实时切换并保护自定义分组名）及原生退出确认弹窗与状态栏托盘（`main.js` / `tray.js` 精确 SHA-256 校验替换）。
+- 边界保护加固：问答问题、选项和预览属于内容；权限交互复用问答组件，固定选项分别对应 ONCE、CONVERSATION、GLOBAL。权限卡须同时具备问答头、权限详情控件和专用输入占位文案；缺少标记时保留选项原文。包含动态命令目标的授权选项、插件/技能专名、会话标题及代码/文件路径保留原文。
+- 修复多文本子节点拼接（`translateMultiTextElement`）与 JSX 行内元素两侧纯空格分隔节点（`inlineConcat`）的识别边界。
+- `npm test`：21 项 JavaScript DOM 测试、11 项 Python 测试全部通过；`npm run build` 构建产物与源码一致。
+- 已在本机 `/Applications/Antigravity.app`（2.29.1）完成完整安装、还原、再安装及 `codesign --verify --deep --strict` 校验，实机验证通过，`2.29.1` 的 `native_ui_tested` 设为 `true`。
+
+以下为历史验证记录。
+
 日期：2026-10-11。
 
 ## v0.1.1 修订范围

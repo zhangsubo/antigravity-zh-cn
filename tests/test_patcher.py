@@ -63,7 +63,7 @@ class InstallerTests(unittest.TestCase):
         self.root = Path(self.tmp.name).resolve()
         self.app = self.root / 'Antigravity.app'
         (self.app / 'Contents/Resources').mkdir(parents=True)
-        preload = b'/* test preload */'
+        preload = b"/* test preload */\nshowContextMenu: (items) => electron_1.ipcRenderer.invoke('window:show-context-menu', items),\n"
         data = make_archive({'package.json': json.dumps({'name':'antigravity','version':'2.22.0'}).encode(),
                              'dist/preload.js': preload, 'asset': b'unchanged'})
         self.asar = self.app / 'Contents/Resources/app.asar'
@@ -73,14 +73,32 @@ class InstallerTests(unittest.TestCase):
             'CFBundleShortVersionString':'2.22.0', 'ElectronAsarIntegrity':{'Resources/app.asar':{
                 'algorithm':'SHA256','hash':p.digest(p.Archive(data).raw_header)}}}))
         self.original = data
+        self.fake_main = (
+            "label: 'New Window',\nlabel: 'No agents running',\n"
+            "label: `Open ${electron_1.app.getName()}`,\nlabel: 'Quit',\n"
+            "buttons: ['Cancel', 'Quit'],\ntitle: 'Confirm Quit',\n"
+            "message: 'Are you sure you want to quit?',\n"
+            "detail: 'There may be agents or background tasks running.',\n"
+        ).encode()
+        self.fake_tray = (
+            "(count > 0 ? `${count}` : 'No') +\n"
+            "                    ' agent' +\n"
+            "                    (count === 1 ? '' : 's') +\n"
+            "                    ' running'"
+        ).encode()
         self.real_inspect = p.inspect
         self.real_json_loads = json.loads
         def loads(data, *args, **kwargs):
             value = self.real_json_loads(data, *args, **kwargs)
             if isinstance(value, dict) and value.get('target') == 'Antigravity Desktop (not Antigravity IDE)':
-                for ver in ('2.22.0', '2.23.0'):
+                for ver in ('2.22.0', '2.23.0', '2.29.1'):
                     if ver in value['versions']:
                         value['versions'][ver]['preload_sha256'] = p.digest(preload)
+                if '2.29.1' in value['versions'] and 'text_patches' in value['versions']['2.29.1']:
+                    tp = value['versions']['2.29.1']['text_patches']
+                    tp['dist/preload.js']['sha256'] = p.digest(preload)
+                    tp['dist/main.js']['sha256'] = p.digest(self.fake_main)
+                    tp['dist/tray.js']['sha256'] = p.digest(self.fake_tray)
             return value
         self.loads_patch = patch.object(p.json, 'loads', side_effect=loads)
         self.loads_patch.start()
@@ -103,16 +121,40 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(info['archive'].read('asset'), b'unchanged')
 
     def test_version_and_symlink_rejected(self):
-        # Verify 2.23.0 is accepted when bundle and package.json match 2.23.0
-        preload = b'/* test preload */'
-        data_223 = make_archive({'package.json': json.dumps({'name':'antigravity','version':'2.23.0'}).encode(),
-                                 'dist/preload.js': preload, 'asset': b'unchanged'})
-        self.asar.write_bytes(data_223)
-        plist_223 = plistlib.loads(self.plist.read_bytes())
-        plist_223['CFBundleShortVersionString'] = '2.23.0'
-        plist_223['ElectronAsarIntegrity']['Resources/app.asar']['hash'] = p.digest(p.Archive(data_223).raw_header)
-        self.plist.write_bytes(plistlib.dumps(plist_223))
-        self.assertEqual(p.inspect(self.app)['version'], '2.23.0')
+        # Verify 2.23.0 and 2.29.1 (including multi-file text_patches) are accepted and patched cleanly
+        preload = b"/* test preload */\nshowContextMenu: (items) => electron_1.ipcRenderer.invoke('window:show-context-menu', items),\n"
+        for supported_ver in ('2.23.0', '2.29.1'):
+            entries = {'package.json': json.dumps({'name':'antigravity','version':supported_ver}).encode(),
+                       'dist/preload.js': preload, 'asset': b'unchanged'}
+            if supported_ver == '2.29.1':
+                entries['dist/main.js'] = self.fake_main
+                entries['dist/tray.js'] = self.fake_tray
+            data_ver = make_archive(entries)
+            self.asar.write_bytes(data_ver)
+            plist_ver = plistlib.loads(self.plist.read_bytes())
+            plist_ver['CFBundleShortVersionString'] = supported_ver
+            plist_ver['ElectronAsarIntegrity']['Resources/app.asar']['hash'] = p.digest(p.Archive(data_ver).raw_header)
+            self.plist.write_bytes(plistlib.dumps(plist_ver))
+            self.assertEqual(p.inspect(self.app)['version'], supported_ver)
+            if supported_ver == '2.29.1':
+                p.patch_bundle(self.app)
+                patched_info = p.inspect(self.app)
+                self.assertTrue(patched_info['patched'])
+                self.assertIn('translateMenu(items)', patched_info['archive'].read('dist/preload.js').decode())
+                self.assertIn('确认退出', patched_info['archive'].read('dist/main.js').decode())
+                self.assertIn('暂无运行中的智能体', patched_info['archive'].read('dist/tray.js').decode())
+                self.assertEqual(patched_info['archive'].read('asset'), b'unchanged')
+
+        # Reject 2.29.1 when dist/main.js fingerprint mismatches
+        bad_entries = {'package.json': json.dumps({'name':'antigravity','version':'2.29.1'}).encode(),
+                       'dist/preload.js': preload, 'dist/main.js': b'tampered', 'dist/tray.js': self.fake_tray}
+        bad_asar = make_archive(bad_entries)
+        self.asar.write_bytes(bad_asar)
+        plist_bad = plistlib.loads(self.plist.read_bytes())
+        plist_bad['CFBundleShortVersionString'] = '2.29.1'
+        plist_bad['ElectronAsarIntegrity']['Resources/app.asar']['hash'] = p.digest(p.Archive(bad_asar).raw_header)
+        self.plist.write_bytes(plistlib.dumps(plist_bad))
+        with self.assertRaises(ValueError): p.inspect(self.app)
 
         data = plistlib.loads(self.plist.read_bytes());data['CFBundleShortVersionString']='999.0'
         self.plist.write_bytes(plistlib.dumps(data))
