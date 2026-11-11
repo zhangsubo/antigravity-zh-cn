@@ -1,5 +1,6 @@
 # Antigravity 简体中文汉化补丁
 
+[![Release](https://img.shields.io/github/v/release/zhangsubo/antigravity-zh-cn?color=blue)](https://github.com/zhangsubo/antigravity-zh-cn/releases/latest)
 [![Tests](https://github.com/zhangsubo/antigravity-zh-cn/actions/workflows/test.yml/badge.svg)](https://github.com/zhangsubo/antigravity-zh-cn/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 

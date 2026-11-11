@@ -1,0 +1,94 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.2.0). Leave empty to use package.json version.'
+        required: false
+        type: string
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run build
+      - run: git diff --exit-code -- dist/antigravity-zh-cn.js
+      - name: Package and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          elif [[ -n "${INPUT_TAG}" ]]; then
+            TAG="${INPUT_TAG}"
+          else
+            TAG="v$(node -p "require('./package.json').version")"
+          fi
+          ZIP="antigravity-zh-cn-${TAG}.zip"
+          git archive --format=zip --prefix="antigravity-zh-cn-${TAG}/" HEAD -o "${ZIP}"
+          shasum -a 256 "${ZIP}" > SHA256SUMS.txt
+          python3 - "${TAG}" "${GITHUB_REPOSITORY}" <<'PY' > RELEASE_NOTES.md
+          import json, pathlib, re, sys
+          tag, repo = sys.argv[1], sys.argv[2]
+          ver = tag.lstrip('v')
+          compat = json.loads(pathlib.Path('tools/compatibility.json').read_text('utf-8'))
+          versions = ' / '.join(compat['versions'].keys())
+          entries = len(json.loads(pathlib.Path('locales/zh-CN.json').read_text('utf-8')))
+          changelog = pathlib.Path('CHANGELOG.md').read_text('utf-8')
+          m = re.search(rf'^## \[{re.escape(ver)}\][^\n]*\n(.*?)(?=^## \[|^\[|\Z)', changelog, re.M | re.S)
+          changes = m.group(1).strip() if m else f'- 适配 Antigravity Desktop {versions}，共收录 {entries} 条简体中文译文。'
+          print(f"""适用于 **Google Antigravity Desktop** 的简体中文本地化补丁，提供界面汉化、中英文实时切换及原版备份与还原。
+
+          ## 本次更新（{tag}）
+
+          {changes}
+
+          ## 兼容性
+
+          | 项目 | 支持情况 |
+          | --- | --- |
+          | 应用版本 | Antigravity Desktop **{versions}** |
+          | 词库规模 | **{entries}** 条简体中文词条 |
+          | 操作系统 | macOS（Apple Silicon 已实测） |
+          | 安装环境 | Python **3.9+** |
+
+          ## 下载与安装
+
+          1. 在下方 **Assets** 中下载 `antigravity-zh-cn-{tag}.zip` 并解压（可通过 `SHA256SUMS.txt` 校验完整性）。
+          2. 在终端进入解压目录，运行只读检查：
+             ```bash
+             python3 tools/patcher.py doctor
+             ```
+          3. 完全退出 Antigravity（`⌘Q`），确认接受[安全说明](https://github.com/{repo}/tree/{tag}#安全说明)后执行安装：
+             ```bash
+             python3 tools/patcher.py install --acknowledge-signature-change --allow-local-library-loading
+             ```
+          4. 如需恢复原版应用与原始签名：
+             ```bash
+             python3 tools/patcher.py restore
+             ```
+          """)
+          PY
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release edit "${TAG}" --title "${TAG}" --notes-file RELEASE_NOTES.md
+            gh release upload "${TAG}" "${ZIP}" SHA256SUMS.txt --clobber
+          else
+            gh release create "${TAG}" "${ZIP}" SHA256SUMS.txt --target "${GITHUB_SHA}" --title "${TAG}" --notes-file RELEASE_NOTES.md
+          fi
