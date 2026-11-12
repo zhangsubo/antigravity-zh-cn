@@ -6,16 +6,16 @@
 
 适用于 **Google Antigravity（反重力）Desktop** 的简体中文本地化补丁，提供全面界面汉化、中英文实时切换，以及原版应用的备份与还原。
 
-本项目由 **[张小璋 / zhangsubo](https://github.com/zhangsubo)** 开发维护，采用 MIT 许可证开源，为非 Google 官方的社区项目。当前适配 **macOS 上的 Antigravity Desktop 2.22.0 / 2.23.0 / 2.29.1**，已在 Apple Silicon 设备上完成实机验证。
+本项目由 **[张小璋 / zhangsubo](https://github.com/zhangsubo)** 开发维护，采用 MIT 许可证开源，为非 Google 官方的社区项目。当前适配 **macOS 上的 Antigravity Desktop 2.22.0 / 2.23.0 / 2.29.1 / 2.31.2**，已在 Apple Silicon 设备上完成实机验证。
 
 **[仓库主页](https://github.com/zhangsubo/antigravity-zh-cn) · [安装指南](#install) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/zhangsubo/antigravity-zh-cn/issues)**
 
 ## 功能特性
 
-- **深度界面汉化**：内置 **1,397 条**简体中文词条，覆盖：
-  - **设置中心**：通用（含语音模式）、应用、外观、快捷键、通知、模型与用量、对话等全部设置页与悬停说明；
-  - **主界面与导航**：侧边栏、项目选择器、主面板「自动化（Automations）」及「自定义配置（Customizations）」插件市场与已安装视图；
-  - **对话流与右侧面板**：权限审批卡片、计划审阅栏、思考折叠头，以及终端、代码变更（Diff）、内置浏览器、文件树外围工具栏；
+- **深度界面汉化**：内置 **1,672 条**简体中文词条，覆盖：
+  - **设置中心**：账户、通用（含语音模式）、应用、外观、浏览器、界面布局、快捷键、通知、模型与用量、定制化、意见反馈、项目与运行环境等全部设置页与悬停说明；
+  - **主界面与导航**：侧边栏（含协调器）、项目选择器、主面板「自动化（Automations）」及「自定义配置（Customizations）」插件市场与已安装视图；
+  - **对话流与右侧面板**：权限审批卡片（含下载审批详情与可编辑权限目标）、选中引用/追问（`/btw`）浮条、追问（Side Question）面板控件、计划审阅栏、思考折叠头，以及终端、代码变更（Diff）、内置浏览器、文件树与 CSV 查看器外围工具栏；
   - **macOS 原生组件**：会话右键菜单（含子菜单）、原生退出确认弹窗与状态栏托盘菜单。
 - **中英文实时切换**：通过主界面右下角的悬浮开关随时启用或关闭汉化，关闭后立即恢复英文原文。
 - **严格边界保护**：仅作用于受控界面控件，不翻译聊天正文、代码与 Diff 内容、输入框、命令参数、项目/分支名称、插件/技能专名或账号信息。
@@ -52,7 +52,8 @@
 
 | 项目 | 支持情况 |
 | --- | --- |
-| 应用 | Google Antigravity Desktop **2.22.0 / 2.23.0 / 2.29.1** |
+| 版本规则 | 四段式 `x.y.z.n`（如 `2.31.2.1`）：前三段与最新适配的 Antigravity 版本一致，第四段为针对该版本的提交序号 |
+| 应用 | Google Antigravity Desktop **2.22.0 / 2.23.0 / 2.29.1 / 2.31.2** |
 | 操作系统 | macOS |
 | 处理器 | Apple Silicon 已实测；Intel Mac 尚未实测 |
 | 安装环境 | Python **3.9+**，无需 Node.js 或 npm 依赖 |
@@ -118,7 +119,7 @@ python3 tools/patcher.py doctor
 python3 tools/patcher.py install --acknowledge-signature-change --allow-local-library-loading
 ```
 
-默认应用路径为 `/Applications/Antigravity.app`。如需指定其他路径，在命令后追加 `--app "/完整路径/Antigravity.app"`。路径必须指向真实应用目录，不支持符号链接；无写入权限时应停止操作，不建议使用 `sudo` 强行安装。
+默认应用路径为 `/Applications/Antigravity.app`。若 Antigravity 自动更新覆盖了之前安装过补丁的应用、导致旧版本备份仍在，`doctor` 会显示 `stale_backup_version`；此时可在上述安装命令后追加 `--replace-stale-backup`，由安装器在核验旧备份完整且当前新版为 Google 原版签名后自动替换为新版备份。如需指定其他路径，追加 `--app "/完整路径/Antigravity.app"`。路径必须指向真实应用目录，不支持符号链接；无写入权限时应停止操作，不建议使用 `sudo` 强行安装。
 
 ### 4. 验证安装结果
 
@@ -172,7 +173,7 @@ npm run build
 
 运行时在指定区域使用完整词条匹配；关闭汉化时，仅恢复仍保持本项目译文的文本。安装器在应用副本中追加翻译代码、更新校验和并完成签名校验，然后保存恢复记录、备份原版并替换应用。
 
-修改源码后需重新构建，并一并提交生成文件。适配新版本时，须重新验证界面、安装、重启、语言切换、还原及原版签名。具体要求见[贡献指南](CONTRIBUTING.md)。
+修改源码后需重新构建，同步更新 `package.json`、`package-lock.json` 与 `src/runtime.js` 中的四段式版本号（`<Antigravity 版本>.<提交序号>`），并一并提交生成文件。适配新版本时，须重新验证界面、安装、重启、语言切换、还原及原版签名。具体要求见[贡献指南](CONTRIBUTING.md)。
 
 ## 更新日志
 

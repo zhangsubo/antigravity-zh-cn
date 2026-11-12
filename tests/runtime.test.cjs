@@ -73,7 +73,13 @@ test('does not translate custom skill names on Conversations settings screen',()
  assert.equal(dom.window.document.querySelector('#copy').textContent,'Default');dom.window.close();
 });
 test('installing payload twice creates only one switch',()=>{
+ const pkg=JSON.parse(fs.readFileSync('package.json','utf8')),lock=JSON.parse(fs.readFileSync('package-lock.json','utf8'));
+ const compat=JSON.parse(fs.readFileSync('tools/compatibility.json','utf8'));
+ assert.match(pkg.version,/^\d+\.\d+\.\d+\.[1-9]\d*$/);
+ assert.ok(Object.hasOwn(compat.versions,pkg.version.split('.').slice(0,3).join('.')));
+ assert.equal(lock.version,pkg.version);assert.equal(lock.packages[''].version,pkg.version);
  const dom=create();dom.window.eval(source);
+ assert.equal(dom.window.__teacherxu_antigravity_zh__.version,pkg.version);
  assert.equal(dom.window.document.querySelectorAll('[data-antigravity-zh-control]').length,1);dom.window.close();
 });
 test('translation dictionary is plain exact-match strings with no markup',()=>{
@@ -615,5 +621,223 @@ test('translates native context menu items, Archive Conversation tooltip, 2.29.1
  assert.deepEqual(zhMenu[5].submenu.map(i=>i.label),['General','新建分组']);
  w.__teacherxu_antigravity_zh__.setEnabled(false);
  assert.equal(w.__teacherxu_antigravity_zh__.translateMenu(menu),menu);
+ dom.window.close();
+});
+
+test('translates 2.31.2 PermissionCard, Browser settings, Coordinators, Side Questions, CSV/File filters, and (Default) menus while protecting user/device/code/bubble boundaries',async()=>{
+ const dom=create(`<aside aria-label="Sidebar">
+  <div data-testid="coordinator-section-header"><h2>Coordinators</h2><button data-testid="new-coordinator-button" aria-label="New coordinator"></button></div>
+ </aside>
+ <div aria-label="Settings" class="agy-dialog settings-modal-container">
+  <button data-testid="settings-nav-item-Browser"><span>Browser</span></button>
+  <button data-testid="settings-nav-item-Projects"><span>Projects</span></button>
+  <button data-testid="settings-nav-item-Environments"><span>Environments</span></button>
+  <h2>Browser</h2>
+  <h3 id="bi-br">Built-in Browser</h3>
+  <span data-testid="builtin-browser-download-dir-value">General</span>
+  <span data-testid="builtin-browser-download-dir-error" id="citc-err">CitC workspace paths are world-readable and permanently snapshotted. Choose a local folder outside CitC.</span>
+  <span id="br-act-req"></span>
+  <input id="dl-site-inp" placeholder="e.g., example.com">
+  <div role="radiogroup" aria-label="Interface Layout">
+   <span role="radio" data-testid="mode-option-non-technical" aria-label="Knowledge Work"><span id="kw-title">Knowledge Work</span><div id="kw-desc">Simplified interface for research, writing, and everyday tasks.</div></span>
+   <span role="radio" data-testid="mode-option-developer" aria-label="Software Engineering"><span id="se-title">Software Engineering</span><div id="se-desc">Full interface for coding, developer tools, and managing agents.</div></span>
+  </div>
+  <input id="sc-search" placeholder="Search shortcuts..." aria-label="Search shortcuts">
+  <span id="sc-conflict">Conflicts with "Open File Search" (press Enter to replace)</span>
+  <span id="acct-plan">Your Plan: Google AI Pro</span>
+  <p id="fb-legal"></p>
+  <div id="biz-doc"></div>
+  <span id="perm-inherit"></span>
+  <a data-testid="resource-link" id="proj-res">Settings</a>
+  <h2 id="run-dev">Running (Dev only)</h2>
+  <span id="sc-read">Mark This Conversation as Read</span>
+  <span id="sc-cider">Open in Cider</span>
+ </div>
+ <div role="dialog">
+  <h2>New Coordinator</h2>
+  <button data-testid="coordinator-icon-picker" aria-label="Choose icon and color"></button>
+  <button data-testid="coordinator-icon-option-settings" aria-label="Settings"></button>
+  <input data-testid="coordinator-name-input" placeholder="e.g. Release helper" aria-label="Coordinator name">
+  <textarea data-testid="coordinator-goal-input" placeholder="What should this coordinator accomplish?" aria-label="Coordinator goal"></textarea>
+  <button data-testid="create-coordinator-submit">Create Coordinator</button>
+ </div>
+ <div role="dialog">
+  <p>Delete this side question? Its messages will be discarded.</p>
+  <button data-testid="confirm-delete-side-question">Delete</button>
+ </div>
+ <div data-testid="agent-response">
+  <div data-bubble-side="agent" id="agent-bubble"><p>Settings</p><button>Always Allow</button></div>
+  <div data-testid="progress-update-response-text" id="prog-resp">General</div>
+  <div id="perm-2312" tabindex="-1">
+   <span data-testid="ask-question-header-icon"></span>
+   <div data-testid="ask-question-header-text">Download artifact?</div>
+   <textarea data-testid="permission-target-editor" aria-label="Edit permission target">Settings</textarea>
+   <dl data-testid="permission-download-details">
+    <dt id="dt-file">File</dt><dd id="dd-file">Settings</dd>
+    <dt id="dt-type">Type</dt><dd id="dd-type">Default</dd>
+    <dt id="dt-save">Save to</dt><dd id="dd-save">General</dd>
+   </dl>
+   <span id="unsandbox-warn">Confirm the command is safe to run outside of the sandbox with full network and disk access.</span>
+   <div data-testid="ask-question-option-text" id="dl-once">Yes, allow this download</div>
+   <div><span id="dl-no">No</span><textarea data-testid="ask-question-writein" placeholder="(tell the agent what to do instead)"></textarea></div>
+  </div>
+  <div id="spoof-ask" tabindex="-1">
+   <span data-testid="ask-question-header-icon"></span>
+   <div data-testid="ask-question-header-text">Choose option</div>
+   <button data-testid="ask-question-collapse-button" aria-label="Collapse questionnaire"></button>
+   <div data-testid="ask-question-option-text" id="spoof-opt">Yes, allow this download</div>
+   <textarea data-testid="ask-question-writein" placeholder="(tell the agent what to do instead)"></textarea>
+  </div>
+ </div>
+ <div data-testid="coordinator-worker-card" id="worker-card"><span>Settings</span><div data-testid="coordinator-card-latest-line">General</div></div>
+ <button id="stop-worker" title="Stop Subagent" aria-label="Stop Subagent"></button>
+ <button data-testid="selection-quote-button"><span>Quote</span></button>
+ <button data-testid="selection-btw-button"><span>Ask /btw</span></button>
+ <div data-testid="side-question-panel">
+  <div data-testid="side-question-followup-user" id="sq-user">Settings</div>
+  <span data-testid="side-question-followup-thinking" id="sq-think">Thinking...</span>
+  <input data-testid="side-question-reply-input" placeholder="Reply to /help... (Esc to minimize)" aria-label="Reply to /help">
+  <button data-testid="side-question-reply-send" aria-label="Send reply"></button>
+  <button data-testid="side-question-popout" aria-label="Open in full conversation"></button>
+ </div>
+ <input data-testid="file-tree-filter-input" placeholder="Filter files..." aria-label="Filter files">
+ <span data-testid="file-tree-vcs-dot" title="Untracked"></span>
+ <div data-testid="file-tree-filter-empty">No matching files</div>
+ <div data-testid="csv-file-viewer">
+  <input data-testid="csv-filter-input" placeholder="Filter rows..." aria-label="Filter rows">
+  <button data-testid="csv-filter-clear" aria-label="Clear row filter">Clear</button>
+  <span data-testid="csv-row-count">12 / 48 rows</span>
+  <div data-testid="csv-scroll-viewport"><div id="csv-cell">Settings</div></div>
+ </div>
+ <div data-testid="browser-cert-interstitial"><h1>Your connection is not private</h1><button data-testid="browser-cert-back-button">Back to safety</button></div>
+ <div class="z-[6000]">
+  <div data-testid="gcp-project-combobox-list"><div id="gcp-proj">General</div></div>
+  <button data-testid="webview-device-chooser-option" id="usb-dev">Settings</button>
+  <p data-testid="webview-prompt-message" id="wv-prompt">Default</p>
+  <span data-testid="webview-download-filename" id="wv-dl">Review</span>
+ </div>
+ <div data-popover-popup="">
+  <span id="sec-title">Connection is secure</span><span data-testid="url-security-host" id="sec-host">Settings</span>
+  <div data-testid="webview-download-drawer">
+   <span id="dr-title">Downloads</span>
+   <button data-testid="webview-downloads-close" aria-label="Close downloads"></button>
+   <button data-testid="webview-download-open" title="Settings"><span data-testid="webview-download-filename" id="dr-file">Settings</span></button>
+   <span data-testid="webview-download-agent-badge" id="dr-agent">Agent</span>
+   <span data-testid="webview-download-status" id="dr-status">Completed</span>
+  </div>
+ </div>
+ <button data-testid="conversation-telemetry-icon-button" aria-label="Telemetry will be enabled for this conversation; click to disable."></button>
+ <span data-testid="conversation-telemetry-indicator" title="Telemetry is off for all conversations."></span>
+ <div id="dyn-slot"></div>
+ <div data-hover-card-popup=""><div data-testid="lsp-symbol-hover-card" id="lsp-hover">General</div></div>
+ <span data-testid="voice-transcript-summary"><span data-testid="voice-transcript-summary-lead" id="vt-lead">Settings</span></span>`);
+ const w=dom.window,d=w.document;
+ const brActReq=d.querySelector('#br-act-req'),chLink=d.createElement('a');chLink.textContent='Google Chrome';
+ brActReq.append(d.createTextNode('Configure allowed and denied URLs for the browser subagent (invoked with /browser). Requires'),d.createTextNode(' '),chLink,d.createTextNode(' to be installed.'));
+ const fbLegal=d.querySelector('#fb-legal'),lh=d.createElement('a');lh.textContent='Legal Help';
+ fbLegal.append(d.createTextNode('Visit'),d.createTextNode(' '),lh,d.createTextNode(' '),d.createTextNode('to ask for content changes for legal reasons.'));
+ const bizDoc=d.querySelector('#biz-doc'),docLink=d.createElement('a');docLink.textContent='documentation';
+ bizDoc.append(d.createTextNode('For Antigravity Business consumption options, see'),d.createTextNode(' '),docLink,d.createTextNode('.'));
+ const permInherit=d.querySelector('#perm-inherit'),gpSpan=d.createElement('span');gpSpan.textContent='Global Permissions';
+ permInherit.append(d.createTextNode('Also includes'),d.createTextNode(' '),gpSpan,d.createTextNode(' '),d.createTextNode('when working '),d.createTextNode('in these conversations'),d.createTextNode('.'));
+ w.__teacherxu_antigravity_zh__.refresh();
+ assert.equal(d.querySelector('[data-testid="coordinator-section-header"] h2').textContent,'协调器');
+ assert.equal(d.querySelector('[data-testid="new-coordinator-button"]').getAttribute('aria-label'),'新建协调器');
+ assert.equal(d.querySelector('[data-testid="settings-nav-item-Browser"]').textContent,'浏览器');
+ assert.equal(d.querySelector('[data-testid="settings-nav-item-Projects"]').textContent,'项目');
+ assert.equal(d.querySelector('[data-testid="settings-nav-item-Environments"]').textContent,'运行环境');
+ assert.equal(d.querySelector('#bi-br').textContent,'内置浏览器');
+ assert.equal(d.querySelector('[data-testid="builtin-browser-download-dir-value"]').textContent,'General');
+ assert.equal(d.querySelector('#citc-err').textContent,'CitC 工作区路径对所有人可读且会永久生成快照，请选择 CitC 以外的本地文件夹。');
+ assert.equal(brActReq.textContent,'配置浏览器子智能体允许和禁止访问的网址（输入 /browser 调用），需要安装 Google Chrome 。');
+ assert.equal(d.querySelector('#dl-site-inp').getAttribute('placeholder'),'例如：example.com');
+ assert.equal(d.querySelector('[data-testid="mode-option-non-technical"]').getAttribute('aria-label'),'知识工作');
+ assert.equal(d.querySelector('#kw-title').textContent,'知识工作');
+ assert.equal(d.querySelector('#kw-desc').textContent,'面向调研、写作与日常任务的精简界面。');
+ assert.equal(d.querySelector('#se-title').textContent,'软件工程');
+ assert.equal(d.querySelector('#se-desc').textContent,'面向编程、开发者工具与智能体管理的完整界面。');
+ assert.equal(d.querySelector('#sc-search').getAttribute('placeholder'),'搜索快捷键...');
+ assert.equal(d.querySelector('#sc-search').getAttribute('aria-label'),'搜索快捷键');
+ assert.equal(d.querySelector('#sc-conflict').textContent,'与“Open File Search”冲突（按 Enter 替换）');
+ assert.equal(d.querySelector('#acct-plan').textContent,'当前套餐：Google AI Pro');
+ assert.equal(fbLegal.textContent,'前往 法律帮助 以出于法律原因申请内容变更。');
+ assert.equal(bizDoc.textContent,'有关 Antigravity 企业版用量计费选项，请参阅 文档.');
+ assert.equal(permInherit.textContent,'同时应用 全局权限 （作用于 这些对话）.');
+ assert.equal(d.querySelector('#proj-res').textContent,'Settings');
+ assert.equal(d.querySelector('#run-dev').textContent,'运行中（仅限开发者）');
+ assert.equal(d.querySelector('#sc-read').textContent,'将此对话标为已读');
+ assert.equal(d.querySelector('#sc-cider').textContent,'在 Cider 中打开');
+ assert.equal(d.querySelector('[data-testid="coordinator-icon-picker"]').getAttribute('aria-label'),'选择图标与颜色');
+ assert.equal(d.querySelector('[data-testid="coordinator-icon-option-settings"]').getAttribute('aria-label'),'Settings');
+ assert.equal(d.querySelector('[data-testid="coordinator-name-input"]').getAttribute('placeholder'),'例如：发布助手');
+ assert.equal(d.querySelector('[data-testid="create-coordinator-submit"]').textContent,'创建协调器');
+ assert.equal(d.querySelector('[data-testid="confirm-delete-side-question"]').textContent,'删除');
+ assert.equal(d.querySelector('#agent-bubble').textContent,'SettingsAlways Allow');
+ assert.equal(d.querySelector('#prog-resp').textContent,'General');
+ assert.equal(d.querySelector('[data-testid="permission-target-editor"]').getAttribute('aria-label'),'编辑授权目标');
+ assert.equal(d.querySelector('#dt-file').textContent,'文件');
+ assert.equal(d.querySelector('#dt-type').textContent,'类型');
+ assert.equal(d.querySelector('#dt-save').textContent,'保存至');
+ assert.equal(d.querySelector('#dd-file').textContent,'Settings');
+ assert.equal(d.querySelector('#dd-type').textContent,'Default');
+ assert.equal(d.querySelector('#dd-save').textContent,'General');
+ assert.equal(d.querySelector('#unsandbox-warn').textContent,'请确认该命令可安全地在沙盒外运行（将拥有完整网络与磁盘访问权限）。');
+ assert.equal(d.querySelector('#dl-once').textContent,'是，仅允许本次下载');
+ assert.equal(d.querySelector('#dl-no').textContent,'否');
+ assert.equal(d.querySelector('#spoof-opt').textContent,'Yes, allow this download');
+ assert.equal(d.querySelector('#worker-card').textContent,'SettingsGeneral');
+ assert.equal(d.querySelector('#stop-worker').getAttribute('title'),'停止子智能体');
+ assert.equal(d.querySelector('[data-testid="selection-quote-button"]').textContent,'引用');
+ assert.equal(d.querySelector('[data-testid="selection-btw-button"]').textContent,'顺便问 (/btw)');
+ assert.equal(d.querySelector('#sq-user').textContent,'Settings');
+ assert.equal(d.querySelector('#sq-think').textContent,'思考中...');
+ assert.equal(d.querySelector('[data-testid="side-question-reply-input"]').getAttribute('placeholder'),'回复 /help...（按 Esc 最小化）');
+ assert.equal(d.querySelector('[data-testid="side-question-popout"]').getAttribute('aria-label'),'在完整对话中打开');
+ assert.equal(d.querySelector('[data-testid="file-tree-filter-input"]').getAttribute('placeholder'),'筛选文件...');
+ assert.equal(d.querySelector('[data-testid="file-tree-vcs-dot"]').getAttribute('title'),'未跟踪');
+ assert.equal(d.querySelector('[data-testid="file-tree-filter-empty"]').textContent,'无匹配文件');
+ assert.equal(d.querySelector('[data-testid="csv-filter-input"]').getAttribute('placeholder'),'筛选行...');
+ assert.equal(d.querySelector('[data-testid="csv-filter-clear"]').textContent,'清除');
+ assert.equal(d.querySelector('[data-testid="csv-row-count"]').textContent,'12 / 48 行');
+ assert.equal(d.querySelector('#csv-cell').textContent,'Settings');
+ assert.equal(d.querySelector('[data-testid="browser-cert-interstitial"] h1').textContent,'你的连接不是私密连接');
+ assert.equal(d.querySelector('[data-testid="browser-cert-back-button"]').textContent,'返回安全页面');
+ assert.equal(d.querySelector('#gcp-proj').textContent,'General');
+ assert.equal(d.querySelector('#usb-dev').textContent,'Settings');
+ assert.equal(d.querySelector('#wv-prompt').textContent,'Default');
+ assert.equal(d.querySelector('#wv-dl').textContent,'Review');
+ assert.equal(d.querySelector('#sec-title').textContent,'连接安全');
+ assert.equal(d.querySelector('#sec-host').textContent,'Settings');
+ assert.equal(d.querySelector('#dr-title').textContent,'下载');
+ assert.equal(d.querySelector('[data-testid="webview-downloads-close"]').getAttribute('aria-label'),'关闭下载列表');
+ assert.equal(d.querySelector('#dr-file').textContent,'Settings');
+ assert.equal(d.querySelector('[data-testid="webview-download-open"]').getAttribute('title'),'Settings');
+ assert.equal(d.querySelector('#dr-agent').textContent,'智能体');
+ assert.equal(d.querySelector('#dr-status').textContent,'已完成');
+ assert.equal(d.querySelector('[data-testid="conversation-telemetry-icon-button"]').getAttribute('aria-label'),'当前对话已启用遥测，点击可关闭。');
+ assert.equal(d.querySelector('[data-testid="conversation-telemetry-indicator"]').getAttribute('title'),'已关闭所有对话的遥测。');
+ assert.equal(d.querySelector('#lsp-hover').textContent,'General');
+ assert.equal(d.querySelector('#vt-lead').textContent,'Settings');
+ const linkMenu=[{id:'open-side',label:'Side Panel (Default)'},{id:'open-ext',label:'External Browser'}];
+ assert.deepEqual(w.__teacherxu_antigravity_zh__.translateMenu(linkMenu).map(i=>i.label),['侧边面板（默认）','外部浏览器']);
+ await wait();
+ const dynInput=d.createElement('input');
+ dynInput.setAttribute('data-testid','file-tree-filter-input');
+ dynInput.setAttribute('placeholder','Filter files...');
+ dynInput.setAttribute('aria-label','Filter files');
+ d.querySelector('#dyn-slot').appendChild(dynInput);
+ await wait();
+ assert.equal(dynInput.getAttribute('placeholder'),'筛选文件...');
+ assert.equal(dynInput.getAttribute('aria-label'),'筛选文件');
+ let frames=0;const rf=w.requestAnimationFrame.bind(w);
+ w.requestAnimationFrame=cb=>{frames++;return rf(cb);};
+ d.querySelector('#agent-bubble p').firstChild.nodeValue='General';
+ d.querySelector('#prog-resp').firstChild.nodeValue='Settings';
+ await wait();assert.equal(frames,0);
+ w.__teacherxu_antigravity_zh__.setEnabled(false);
+ assert.equal(d.querySelector('#dt-type').textContent,'Type');
+ assert.equal(d.querySelector('[data-testid="csv-row-count"]').textContent,'12 / 48 rows');
+ assert.equal(d.querySelector('[data-testid="conversation-telemetry-icon-button"]').getAttribute('aria-label'),'Telemetry will be enabled for this conversation; click to disable.');
+ assert.equal(dynInput.getAttribute('placeholder'),'Filter files...');
  dom.window.close();
 });

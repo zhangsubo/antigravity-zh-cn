@@ -91,14 +91,14 @@ class InstallerTests(unittest.TestCase):
         def loads(data, *args, **kwargs):
             value = self.real_json_loads(data, *args, **kwargs)
             if isinstance(value, dict) and value.get('target') == 'Antigravity Desktop (not Antigravity IDE)':
-                for ver in ('2.22.0', '2.23.0', '2.29.1'):
+                for ver in ('2.22.0', '2.23.0', '2.29.1', '2.31.2'):
                     if ver in value['versions']:
                         value['versions'][ver]['preload_sha256'] = p.digest(preload)
-                if '2.29.1' in value['versions'] and 'text_patches' in value['versions']['2.29.1']:
-                    tp = value['versions']['2.29.1']['text_patches']
-                    tp['dist/preload.js']['sha256'] = p.digest(preload)
-                    tp['dist/main.js']['sha256'] = p.digest(self.fake_main)
-                    tp['dist/tray.js']['sha256'] = p.digest(self.fake_tray)
+                        if 'text_patches' in value['versions'][ver]:
+                            tp = value['versions'][ver]['text_patches']
+                            tp['dist/preload.js']['sha256'] = p.digest(preload)
+                            tp['dist/main.js']['sha256'] = p.digest(self.fake_main)
+                            tp['dist/tray.js']['sha256'] = p.digest(self.fake_tray)
             return value
         self.loads_patch = patch.object(p.json, 'loads', side_effect=loads)
         self.loads_patch.start()
@@ -121,12 +121,12 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(info['archive'].read('asset'), b'unchanged')
 
     def test_version_and_symlink_rejected(self):
-        # Verify 2.23.0 and 2.29.1 (including multi-file text_patches) are accepted and patched cleanly
+        # Verify 2.23.0, 2.29.1, and 2.31.2 (including multi-file text_patches) are accepted and patched cleanly
         preload = b"/* test preload */\nshowContextMenu: (items) => electron_1.ipcRenderer.invoke('window:show-context-menu', items),\n"
-        for supported_ver in ('2.23.0', '2.29.1'):
+        for supported_ver in ('2.23.0', '2.29.1', '2.31.2'):
             entries = {'package.json': json.dumps({'name':'antigravity','version':supported_ver}).encode(),
                        'dist/preload.js': preload, 'asset': b'unchanged'}
-            if supported_ver == '2.29.1':
+            if supported_ver in ('2.29.1', '2.31.2'):
                 entries['dist/main.js'] = self.fake_main
                 entries['dist/tray.js'] = self.fake_tray
             data_ver = make_archive(entries)
@@ -136,7 +136,7 @@ class InstallerTests(unittest.TestCase):
             plist_ver['ElectronAsarIntegrity']['Resources/app.asar']['hash'] = p.digest(p.Archive(data_ver).raw_header)
             self.plist.write_bytes(plistlib.dumps(plist_ver))
             self.assertEqual(p.inspect(self.app)['version'], supported_ver)
-            if supported_ver == '2.29.1':
+            if supported_ver in ('2.29.1', '2.31.2'):
                 p.patch_bundle(self.app)
                 patched_info = p.inspect(self.app)
                 self.assertTrue(patched_info['patched'])
@@ -209,6 +209,46 @@ class InstallerTests(unittest.TestCase):
             with self.assertRaises(ValueError): p.install(self.app,True,False)
         with patch.object(p,'run',return_value=subprocess.CompletedProcess([],0,str(self.app/'Contents/MacOS/Antigravity'),'')):
             with self.assertRaises(ValueError): p.ensure_stopped(self.app)
+
+    def test_stale_backup_replacement_after_app_update(self):
+        preload = b"/* test preload */\nshowContextMenu: (items) => electron_1.ipcRenderer.invoke('window:show-context-menu', items),\n"
+        with patch.object(p.sys, 'platform', 'darwin'), patch.object(p, 'run', side_effect=self.run_fake):
+            p.install(self.app, True, True)
+            backup, state = p.paths(self.app)
+            # Same-version conflict still refuses even with replace_stale_backup=True
+            self.asar.write_bytes(self.original)
+            self.plist.write_bytes((backup / 'Contents/Info.plist').read_bytes())
+            with self.assertRaisesRegex(ValueError, 'refusing to overwrite'):
+                p.install(self.app, True, True, True)
+            # Simulate auto-update to 2.31.2 while 2.22.0 backup/state remain
+            asar_2312 = make_archive({'package.json': json.dumps({'name': 'antigravity', 'version': '2.31.2'}).encode(),
+                                      'dist/preload.js': preload, 'dist/main.js': self.fake_main,
+                                      'dist/tray.js': self.fake_tray, 'asset': b'updated-2312'})
+            self.asar.write_bytes(asar_2312)
+            plist_2312 = plistlib.loads(self.plist.read_bytes())
+            plist_2312['CFBundleShortVersionString'] = '2.31.2'
+            plist_2312['ElectronAsarIntegrity']['Resources/app.asar']['hash'] = p.digest(p.Archive(asar_2312).raw_header)
+            self.plist.write_bytes(plistlib.dumps(plist_2312))
+            self.assertEqual(p.report(p.inspect(self.app)).get('stale_backup_version'), '2.22.0')
+            with self.assertRaisesRegex(ValueError, '--replace-stale-backup'):
+                p.install(self.app, True, True)
+        with patch.object(p.sys, 'platform', 'darwin'):
+            def failing(*args):
+                if '--force' in args: raise subprocess.CalledProcessError(1, args, stderr='sign failure')
+                return self.run_fake(*args)
+            with patch.object(p, 'run', side_effect=failing):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    p.install(self.app, True, True, True)
+            self.assertEqual(json.loads(state.read_text())['version'], '2.22.0')
+            self.assertEqual(self.asar.read_bytes(), asar_2312)
+            with patch.object(p, 'run', side_effect=self.run_fake):
+                p.install(self.app, True, True, True)
+                self.assertTrue(p.inspect(self.app)['patched'])
+                self.assertEqual(json.loads(state.read_text())['version'], '2.31.2')
+                p.restore(self.app)
+                self.assertEqual(self.asar.read_bytes(), asar_2312)
+                self.assertFalse(backup.exists())
+                self.assertFalse(state.exists())
 
 
 if __name__ == '__main__': unittest.main()

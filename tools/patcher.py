@@ -110,6 +110,28 @@ def paths(app):
     return app.with_name(app.name + '.zh-cn-original'), app.with_name(app.name + '.zh-cn-state.json')
 
 
+def stale_backup_version(app, version, backup, state):
+    if (backup.is_symlink() or state.is_symlink() or not backup.is_dir() or
+            not state.is_file() or backup.resolve() != backup):
+        return None
+    for relative in ('Contents/Info.plist', 'Contents/Resources/app.asar'):
+        f = backup / relative
+        if not f.is_file() or f.resolve() != f:
+            return None
+    try:
+        metadata = json.loads(state.read_text())
+    except (ValueError, OSError):
+        return None
+    old_version = metadata.get('version') if isinstance(metadata, dict) else None
+    if (metadata.get('schema') != 1 or metadata.get('app') != str(app) or
+            not isinstance(old_version, str) or old_version == version):
+        return None
+    if (digest((backup / 'Contents/Resources/app.asar').read_bytes()) != metadata.get('original_asar') or
+            digest((backup / 'Contents/Info.plist').read_bytes()) != metadata.get('original_plist')):
+        return None
+    return old_version
+
+
 def inspect(app):
     app = assert_app_path(app)
     plist = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
@@ -153,13 +175,17 @@ def report(info):
     scope = 'Settings, navigation, Automations, approval & panel toolbars'
     if info['rule'].get('text_patches'):
         scope += '; native quit dialog & tray'
-    return {'app': str(info['app']), 'version': info['version'],
-            'patched': info['patched'], 'asar_sha256': info['asar_sha256'],
-            'translations': len(json.loads((ROOT / 'locales/zh-CN.json').read_text())),
-            'backup': str(backup), 'state_present': state.exists(),
-            'native_ui_tested': info['rule']['native_ui_tested'],
-            'scope': scope,
-            'signature_effect': 'local ad-hoc outer signature and explicit app-scoped library-validation exception'}
+    result = {'app': str(info['app']), 'version': info['version'],
+              'patched': info['patched'], 'asar_sha256': info['asar_sha256'],
+              'translations': len(json.loads((ROOT / 'locales/zh-CN.json').read_text())),
+              'backup': str(backup), 'state_present': state.exists(),
+              'native_ui_tested': info['rule']['native_ui_tested'],
+              'scope': scope,
+              'signature_effect': 'local ad-hoc outer signature and explicit app-scoped library-validation exception'}
+    stale_ver = stale_backup_version(info['app'], info['version'], backup, state) if not info['patched'] else None
+    if stale_ver:
+        result['stale_backup_version'] = stale_ver
+    return result
 
 
 def run(*args):
@@ -207,7 +233,7 @@ def patch_bundle(app):
     return digest(archive_bytes)
 
 
-def install(app, acknowledge=False, allow_local_libraries=False):
+def install(app, acknowledge=False, allow_local_libraries=False, replace_stale_backup=False):
     if sys.platform != 'darwin':
         raise ValueError('v0.1 supports macOS installation only')
     if not acknowledge:
@@ -219,9 +245,17 @@ def install(app, acknowledge=False, allow_local_libraries=False):
     if info['patched']:
         raise ValueError('Already patched; restore before installing a different patch version')
     backup, state = paths(app)
-    if backup.exists() or state.exists() or backup.is_symlink() or state.is_symlink():
-        raise ValueError('Backup/state already exists; refusing to overwrite it')
+    has_existing = backup.exists() or state.exists() or backup.is_symlink() or state.is_symlink()
+    stale_version = stale_backup_version(app, info['version'], backup, state) if has_existing else None
+    if has_existing:
+        if not stale_version:
+            raise ValueError('Backup/state already exists; refusing to overwrite it')
+        if not replace_stale_backup:
+            raise ValueError('Backup/state already exists from ' + stale_version +
+                             '; pass --replace-stale-backup after an app update')
     ensure_stopped(app)
+    if stale_version:
+        verify_signature(backup)
     verify_signature(app)
     run('/usr/sbin/spctl', '--assess', '--type', 'execute', str(app))
     signature = run('/usr/bin/codesign', '-dv', '--verbose=2', str(app)).stderr
@@ -229,6 +263,10 @@ def install(app, acknowledge=False, allow_local_libraries=False):
         raise ValueError('Original application must have a Google LLC signature')
     staging = Path(tempfile.mkdtemp(prefix='.antigravity-zh-', dir=app.parent))
     staged = staging / app.name
+    old_backup = staging / 'stale-backup.app'
+    old_state = staging / 'stale-state.json'
+    moved_stale_backup = False
+    moved_stale_state = False
     moved_original = False
     committed = False
     state_created = False
@@ -252,6 +290,11 @@ def install(app, acknowledge=False, allow_local_libraries=False):
         metadata = {'schema': 1, 'app': str(app), 'version': info['version'],
                     'original_asar': info['asar_sha256'], 'patched_asar': patched_hash,
                     'original_plist': digest((app / 'Contents/Info.plist').read_bytes())}
+        if stale_version:
+            os.rename(backup, old_backup)
+            moved_stale_backup = True
+            os.rename(state, old_state)
+            moved_stale_state = True
         # Reserve the manifest exclusively; never overwrite an existing recovery record.
         with state.open('x') as f:
             state_created = True
@@ -268,9 +311,14 @@ def install(app, acknowledge=False, allow_local_libraries=False):
             raise
         committed = True
     finally:
+        if not committed and not moved_original:
+            if state_created and state.is_file():
+                state.unlink()
+            if moved_stale_state and not state.exists():
+                os.rename(old_state, state)
+            if moved_stale_backup and not backup.exists():
+                os.rename(old_backup, backup)
         shutil.rmtree(staging, ignore_errors=True)
-        if state_created and not committed and not moved_original and state.is_file():
-            state.unlink()
     return report(inspect(app))
 
 
@@ -328,6 +376,7 @@ def main():
     parser.add_argument('--app', type=Path, default=Path('/Applications/Antigravity.app'))
     parser.add_argument('--acknowledge-signature-change', action='store_true')
     parser.add_argument('--allow-local-library-loading', action='store_true')
+    parser.add_argument('--replace-stale-backup', action='store_true')
     args = parser.parse_args()
     try:
         if args.command == 'build':
@@ -338,7 +387,8 @@ def main():
         elif args.command == 'doctor':
             result = report(inspect(args.app))
         elif args.command == 'install':
-            result = install(args.app, args.acknowledge_signature_change, args.allow_local_library_loading)
+            result = install(args.app, args.acknowledge_signature_change,
+                             args.allow_local_library_loading, args.replace_stale_backup)
         else:
             result = restore(args.app)
         print(json.dumps(result, ensure_ascii=False, indent=2))

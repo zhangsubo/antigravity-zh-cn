@@ -1,5 +1,15 @@
 # 更新日志
 
+## [2.31.2.1] - 2026-11-12
+
+### 新增与改进
+
+- 新增 **Antigravity Desktop 2.31.2** 版本适配与 `dist/preload.js`、`dist/main.js`、`dist/tray.js` SHA-256 指纹校验。
+- 词库由 1,397 条扩充至 **1,672 条**简体中文词条。
+- 适配 2.31.2 新版界面：设置中心「浏览器」独立页签与「界面布局 / 对话布局」、项目/运行环境设置导航、协调器（Coordinators）侧边栏与管理弹窗、无折叠按钮权限审批卡（可编辑权限目标、浏览器下载详情与沙盒外运行安全提示）、选中引用与追问（`/btw` / Side Question）控件、内置浏览器下载抽屉/证书拦截页/安全信息弹层、对话遥测状态按钮、文件树筛选与 VCS 状态点、CSV 查看器外围工具栏，以及原生右键菜单 `(Default)` 动态后缀。
+- 边界保护与观测加固：保护对话气泡视图（`[data-bubble-side="agent"]`）、进度响应流、追问用户消息、语音转写摘要、下载目录路径与下载文件名按钮（`webview-download-open`）、GCP 项目列表、设备选择器选项、LSP 悬停卡片及 CSV 单元格；修复动态插入受控 `input` / `textarea` 时被 `SKIP` 自匹配拦截导致未触发首轮属性翻译的问题。
+- 安装器增强：`doctor` 新增 `stale_backup_version` 检测，`install` 新增显式 `--replace-stale-backup` 参数，支持应用自动更新后安全替换旧版原版备份（失败自动事务回滚）。
+
 ## [0.2.0] - 2026-11-11
 
 ### 新增与扩展
@@ -33,6 +43,7 @@
 - 收录 6 张已遮挡账号的实机截图与 3 张中英文对比图。
 - 完成 19 项自动化测试，以及 Apple Silicon Mac 上的安装、切换、重启和完整还原验证。
 
+[2.31.2.1]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v2.31.2.1
 [0.2.0]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v0.2.0
 [0.1.1]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v0.1.1
 [0.1.0]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v0.1.0

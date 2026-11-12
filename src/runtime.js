@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const dictionary = /*__DICTIONARY__*/ {};
-  const VERSION = '0.2.0';
+  const VERSION = '2.31.2.1';
   const KEY = '__teacherxu_antigravity_zh__';
   if (window[KEY]) return;
   // The native application serves its UI locally. Never translate sign-in sites.
@@ -17,10 +17,18 @@
     '[data-testid="new-sidecar-project"],[data-testid="new-sidecar-model"],[data-testid="diff-view-mode-detail"],' +
     '[data-testid="diff-view-mode-option"] + span,[data-testid="terminal-tab-surface"],[data-testid="browser-url-display"],' +
     '[data-testid="voice-picker-name"],[data-testid="customization-card"] a,[data-testid="customization-card"] .font-medium > button,' +
-    '[data-testid="featured-carousel-headline"],[data-testid^="bundle-card-"] h3';
+    '[data-testid="featured-carousel-headline"],[data-testid^="bundle-card-"] h3,' +
+    '[data-testid="builtin-browser-download-dir-value"],[data-testid="gcp-project-combobox-list"],' +
+    '[data-testid="webview-device-chooser-option"],[data-testid="webview-prompt-message"],' +
+    '[data-testid="webview-download-filename"],[data-testid="webview-download-open"],' +
+    '[data-testid="url-security-host"],[data-testid="url-security-origin"],' +
+    '[data-testid="lsp-symbol-hover-card"],[data-testid="lsp-reference-item"],[data-testid="csv-scroll-viewport"],' +
+    '[data-testid="coordinator-worker-card"],[data-testid="coordinator-chat-header"],' +
+    '[data-testid="permission-download-details"] dd,[data-testid="resource-link"]';
   // These nodes contain model/user data, even when rendered inside a UI popup.
   const CONTENT = '[data-testid="ask-question-header-text"],[data-testid="ask-question-option-text"],' +
-    '[data-testid="planner-response-text"],[data-testid="user-message-content"],' +
+    '[data-testid="planner-response-text"],[data-testid="progress-update-response-text"],[data-bubble-side="agent"],' +
+    '[data-testid="user-message-content"],[data-testid="side-question-followup-user"],[data-testid="voice-transcript-summary"],' +
     '[data-testid="markdown-code-block-preview"],[data-testid="background-task-command"],' +
     '[data-testid="setup-script-output"],[data-testid="browser-subagent-thinking"]';
   const POPUPS = '.z-\\[6000\\],[role="menu"],[data-select-popup],[data-popover-popup],' +
@@ -31,7 +39,8 @@
     '.files-changed-header,[data-testid="cleared-step-notice"],.flex-wrap,.proceed-button,' +
     'button > span.whitespace-nowrap,button[aria-label],span.font-medium.text-sm,' +
     '[data-testid="interaction-skip-button"],[data-testid="interaction-continue-button"],' +
-    '[data-testid="permission-details-toggle"],[data-testid="ask-question-writein"],' +
+    '[data-testid="permission-details-toggle"],[data-testid="permission-target-editor"],' +
+    '[data-testid="permission-download-details"],[data-testid="ask-question-writein"],' +
     '[data-testid="ask-question-progress"],[data-testid="thinking-collapsible-trigger"],' +
     '[data-testid="artifact-card-split-button"],[data-testid="open-in-new-window-action"],' +
     '[data-testid="overview-panel"],[data-testid="cloud-triggers-view"],' +
@@ -44,8 +53,19 @@
     '[data-testid="diff-view-mode-trigger"],[data-testid="diff-view-mode-option"],' +
     '[data-testid="builtin-browser-reload"],[data-testid="browser-url-input"],' +
     '[data-testid="webview-download-show-in-folder"],[data-testid="webview-download-cancel"],' +
-    '[data-testid="webview-download-remove"],[data-testid="voice-picker"],[data-testid="customizations-search"],' +
+    '[data-testid="webview-download-remove"],[data-testid="webview-downloads-close"],' +
+    '[data-testid="conversation-telemetry-icon-button"],[data-testid="conversation-telemetry-indicator"],' +
+    '[data-testid="voice-picker"],[data-testid="customizations-search"],' +
     '[data-testid="customizations-marketplace"],[data-testid="customizations-installed"],[data-testid="plugins-tabs"],' +
+    '[data-testid="selection-quote-button"],[data-testid="selection-btw-button"],' +
+    '[data-testid="side-question-panel"],[data-testid="confirm-delete-side-question"],' +
+    '[data-testid="create-coordinator-submit"],[data-testid="coordinator-settings-save"],' +
+    '[data-testid="new-coordinator-button"],[data-testid="coordinator-section-header"],' +
+    '[data-testid="file-tree-filter-input"],[data-testid="file-tree-filter-empty"],[data-testid="file-tree-vcs-dot"],' +
+    '[data-testid="csv-file-viewer"],[data-testid="lsp-peek-references-close"],' +
+    '[data-testid="url-security-indicator"],[data-testid="browser-cert-interstitial"],' +
+    '[data-testid="builtin-browser-caa-open-external"],[data-testid="onboarding-auth-code-panel"],' +
+    '[data-testid="automation-model-unavailable"],' +
     'input[placeholder="Search conversations..."]';
   const records = new Map();
   const placeholderRecords = new Map();
@@ -184,9 +204,14 @@
     if (match) {
       return `对比度过低（${match[1]}），文字可能难以辨认。`;
     }
-    match = key.match(/^(.+) \(Experimental\)$/);
+    match = key.match(/^(.+) \((Experimental|Default|Preview)\)$/);
     if (match && Object.hasOwn(dictionary, match[1])) {
-      return `${dictionary[match[1]]}（实验性）`;
+      const suffix = { Experimental: '实验性', Default: '默认', Preview: '预览' }[match[2]];
+      return `${dictionary[match[1]]}（${suffix}）`;
+    }
+    match = key.match(/^(\d+(?:\s*\/\s*\d+)?) rows?$/);
+    if (match) {
+      return `${match[1]} 行`;
     }
     match = key.match(/^Thought for (\d+)s$/);
     if (match) {
@@ -233,11 +258,28 @@
     if (match) {
       return `使用 ${match[1]}`;
     }
+    match = key.match(/^Your Plan:\s*(.+)$/);
+    if (match) {
+      return `当前套餐：${match[1]}`;
+    }
+    match = key.match(/^Conflicts with "([\s\S]+)" \(press Enter to replace\)$/);
+    if (match) {
+      return `与“${match[1]}”冲突（按 Enter 替换）`;
+    }
+    match = key.match(/^Conflict: also assigned to (.+)$/);
+    if (match) {
+      return `冲突：同时分配给了 ${match[1]}`;
+    }
+    match = key.match(/^No MCP servers found for "([\s\S]+)"$/);
+    if (match) {
+      return `未找到与“${match[1]}”匹配的 MCP 服务器`;
+    }
     return null;
   }
-  const settingsNavIds = new Set(['General', 'App', 'Appearance', 'Project 4K',
-    'Shortcuts', 'Notifications', 'Models', 'Customizations', 'Developer',
-    'Running', 'Provide Feedback', 'Give Feedback', 'Account', 'Conversations']);
+  const settingsNavIds = new Set(['General', 'App', 'Appearance', 'Browser', 'Project 4K',
+    'Interface Layout', 'Shortcuts', 'Notifications', 'Models', 'Customizations', 'Developer',
+    'Running', 'Provide Feedback', 'Give Feedback', 'Account', 'Conversations',
+    'Projects', 'Environments']);
   function protectedContent(element, allowPermissionOption = false) {
     for (let content = element.closest(CONTENT); content; content = content.parentElement?.closest(CONTENT)) {
       if (allowPermissionOption && content.matches('[data-testid="ask-question-option-text"]')) continue;
@@ -258,11 +300,15 @@
     const testId = button.getAttribute('data-testid');
     return !!(testId?.startsWith('settings-nav-item-') && !settingsNavIds.has(testId.slice(18)));
   }
-  const allowedFragments = new Set(['(ADC)', 'Allowed Domains', 'Organization MCP Allowlist (Read-Only)',
-    'Powered by Gemini Live ·', 'Terms of Service', 'This will permanently delete', 'within it.',
-    'including', 'Zipping', 'in the top left.', 'menu)', 'to be installed.',
+  const allowedFragments = new Set(['(ADC)', 'Allowed Domains', 'Also includes',
+    'Organization MCP Allowlist (Read-Only)', 'Powered by Gemini Live ·', 'Terms of Service',
+    'This will permanently delete', 'within it.', 'including', 'Zipping', 'in the top left.',
+    'menu)', 'to be installed.',
     'to be installed. The browser subagent can be invoked by typing /browser in the conversation input box.',
-    'to have the agent generate a plan.', 'when working in this project.']);
+    'Configure allowed and denied URLs for the browser subagent (invoked with /browser). Requires',
+    'For Antigravity Business consumption options, see', 'Visit',
+    'to ask for content changes for legal reasons.', 'to have the agent generate a plan.',
+    'when working', 'in this project', 'in these conversations', 'when working in this project.']);
   function translateNode(node, allowPermissionOption = false) {
     if (protectedNode(node, allowPermissionOption)) return;
     const current = node.nodeValue;
@@ -324,9 +370,9 @@
     placeholderRecords.set(el, { original: current, translated });
     el.setAttribute('placeholder', translated);
   }
+  const skippedControl = el => el.matches('input,textarea') ? el.parentElement?.closest(SKIP) : el.closest(SKIP);
   function translateAttrs(el) {
-    if (!el || protectedContent(el) ||
-      (el.matches('input,textarea') ? el.parentElement?.closest(SKIP) : el.closest(SKIP))) return;
+    if (!el || protectedContent(el) || skippedControl(el)) return;
     let entry = attrRecords.get(el);
     for (const attr of ['title', 'aria-label']) {
       const current = el.getAttribute(attr);
@@ -407,14 +453,19 @@
     'No conversations found', 'Display Options', 'This page is going away soon',
     'Search conversations with', 'in the top left.', 'View archived in the sidebar', 'menu)']);
   const overviewSafeTexts = new Set(['Overview', 'Review', 'Files', 'Terminal', 'Plugins',
-    'Subagents', 'Background Tasks', 'Goals', 'Documents', 'Artifacts', 'Links',
-    'Modified Files', 'Uploads', 'Extensions', 'No subagents', 'No links', 'No uploads',
-    'No plugins available', 'Needs attention', 'Approve', 'Deny', 'Blocked, needs input',
-    'Agents', 'Chief of Staff Dashboard', 'Customize Sections', 'Show less',
-    'Open in Side Panel', 'Open in Built-in Browser', 'Open in New Tab', 'Open in External Browser']);
+    'Subagents', 'Coordinators', 'Side Questions', 'Environments', 'Background Tasks', 'Goals',
+    'Documents', 'Artifacts', 'Links', 'Modified Files', 'Uploads', 'Extensions', 'No subagents',
+    'No coordinators', 'No links', 'No uploads', 'No plugins available', 'Needs attention',
+    'Approve', 'Deny', 'Blocked, needs input', 'Agents', 'Chief of Staff Dashboard',
+    'Customize Sections', 'Show less', 'Open in Side Panel', 'Open in Built-in Browser',
+    'Open in New Tab', 'Open in External Browser']);
   const permissionOptionSafeTexts = new Set(['Yes, allow', 'Yes, allow this time',
-    'Yes, save rule in this conversation', 'Yes, and always allow in this conversation',
-    'Yes, save rule globally', 'Yes, and always allow']);
+    'Yes, allow this download', 'Yes, save rule in this conversation',
+    'Yes, and always allow in this conversation', 'Yes, save rule globally',
+    'Yes, and always allow']);
+  const permissionDownloadLabels = {
+    File: '文件', From: '来源', 'Redirected from': '重定向自', Type: '类型', 'Save to': '保存至'
+  };
   const approvalButtonSafeTexts = new Set(['Allow Once', 'Always Allow', 'Deny', 'Confirm',
     'Accept', 'Reject', 'Configure', 'Try Again']);
   const automationSafeTexts = new Set(['Automations', 'Scheduled Tasks', 'Scheduled', 'Always on',
@@ -436,9 +487,14 @@
   function isPermissionCard(card) {
     if (!card || card.closest(SKIP) || protectedContent(card)) return false;
     const header = card.querySelector('[data-testid="ask-question-header-text"]');
-    const details = card.querySelector('[data-testid="permission-details-toggle"]');
     const input = card.querySelector('[data-testid="ask-question-writein"]');
-    if (![header, details, input].every(el => el?.closest('[tabindex="-1"]') === card)) return false;
+    if (![header, input].every(el => el?.closest('[tabindex="-1"]') === card)) return false;
+    if (card.querySelector('[data-testid="ask-question-collapse-button"]')?.closest('[tabindex="-1"]') === card) return false;
+    const hasMarker = [...card.querySelectorAll(
+      '[data-testid="permission-details-toggle"],[data-testid="permission-target-editor"],' +
+      '[data-testid="permission-download-details"],[data-testid="ask-question-header-icon"]'
+    )].some(el => el.closest('[tabindex="-1"]') === card);
+    if (!hasMarker) return false;
     const placeholder = placeholderRecords.get(input)?.original ?? input.getAttribute('placeholder');
     return normalize(placeholder || '') === '(tell the agent what to do instead)';
   }
@@ -451,23 +507,32 @@
       for (const el of attrRecords.keys()) if (!el.isConnected) attrRecords.delete(el);
       const root = findSettings();
       if (root) {
-        const supported = ['General', 'Application', 'Appearance', 'Models & Usage',
-          'Shortcuts', 'Account', 'Provide Feedback', 'Give Feedback', 'Customizations',
-          'Notifications', 'Project 4K', 'Permissions', 'Global Permissions',
-          'GitHub Permissions', 'Developer', 'Workspaces', 'Projects', 'Not in Project'];
+        const supported = ['General', 'Application', 'Appearance', 'Browser',
+          'Browser Actuation Permissions', 'Models & Usage', 'Shortcuts', 'Account',
+          'Provide Feedback', 'Give Feedback', 'Customizations', 'Notifications',
+          'Project 4K', 'Interface Layout', 'Permissions', 'Global Permissions',
+          'GitHub Permissions', 'File Permissions', 'Network Permissions',
+          'Terminal Commands', 'MCP Tools', 'Add MCP Servers', 'Manage Hooks',
+          'Build With Google Plugins', 'Select your license', 'Developer',
+          'Workspaces', 'Projects', 'Not in Project', 'Environments', 'Running (Dev only)'];
         const headings = [...root.querySelectorAll('h2')].map(originalText);
         if (headings.some(name => supported.includes(name))) {
           translateTree(root);
-          for (const el of root.querySelectorAll('button[aria-label],input[aria-label]')) translateAttrs(el);
+          for (const el of root.querySelectorAll(
+            'button[aria-label],input[aria-label],textarea[aria-label],[role="radio"][aria-label],' +
+            '[role="radiogroup"][aria-label],[role="switch"][aria-label],[role="region"][aria-label],' +
+            '[role="listbox"][aria-label],button[title]'
+          )) translateAttrs(el);
         } else {
           // Other settings screens can contain user-authored skills and project names.
           for (const el of root.querySelectorAll('button,h1,h2,div')) {
             if ((el.tagName !== 'DIV' || el.children.length === 0) &&
-              ['Settings', 'General', 'Application', 'Appearance', 'Models',
-                'Conversations', 'Shortcuts', 'Provide Feedback', 'Give Feedback', 'Account',
-                'Customizations', 'Notifications', 'Project 4K', 'Permissions',
+              ['Settings', 'General', 'Application', 'Appearance', 'Browser',
+                'Browser Actuation Permissions', 'Models', 'Conversations', 'Shortcuts',
+                'Provide Feedback', 'Give Feedback', 'Account', 'Customizations',
+                'Notifications', 'Project 4K', 'Interface Layout', 'Permissions',
                 'Global Permissions', 'GitHub Permissions', 'Developer', 'Back',
-                'Workspaces', 'Projects', 'Not in Project',
+                'Workspaces', 'Projects', 'Not in Project', 'Environments',
                 'Settings for conversations outside of projects.',
                 'Settings for conversations outside of workspaces.',
                 'Agent settings and permissions for conversations outside of projects.',
@@ -498,11 +563,12 @@
           }
         }
         for (const el of sidebar.querySelectorAll(
-          '[data-testid="conversation-archive-button"],[data-testid="conversation-pin-button"],[data-testid="conversation-kebab"]'
+          '[data-testid="conversation-archive-button"],[data-testid="conversation-pin-button"],' +
+          '[data-testid="conversation-kebab"],[data-testid="new-coordinator-button"]'
         )) {
           translateAttrs(el);
         }
-        for (const el of sidebar.querySelectorAll('[data-testid="section-header"] h2')) {
+        for (const el of sidebar.querySelectorAll('[data-testid="section-header"] h2,[data-testid="coordinator-section-header"] h2')) {
           translateTree(el);
         }
         for (const el of sidebar.querySelectorAll('span')) {
@@ -571,6 +637,27 @@
             for (const opt of card.querySelectorAll('[data-testid="ask-question-option-text"]')) {
               if (opt.closest('[tabindex="-1"]') === card && permissionOptionSafeTexts.has(originalText(opt))) {
                 translateTree(opt, true);
+              }
+            }
+            for (const ed of card.querySelectorAll('[data-testid="permission-target-editor"]')) {
+              if (ed.closest('[tabindex="-1"]') === card) translateAttrs(ed);
+            }
+            for (const dt of card.querySelectorAll('[data-testid="permission-download-details"] dt')) {
+              if (dt.closest('[tabindex="-1"]') === card && dt.firstChild?.nodeType === 3 &&
+                dt.childNodes.length === 1 && !protectedNode(dt.firstChild)) {
+                const label = permissionDownloadLabels[originalText(dt)];
+                const n = dt.firstChild, cur = n.nodeValue;
+                if (label && records.get(n)?.translated !== cur) {
+                  const tr = cur.replace(/\S[\s\S]*\S|\S/, label);
+                  records.set(n, { original: cur, translated: tr });
+                  n.nodeValue = tr;
+                }
+              }
+            }
+            for (const span of card.querySelectorAll('span')) {
+              if (span.closest('[tabindex="-1"]') === card && span.children.length === 0 &&
+                originalText(span) === 'Confirm the command is safe to run outside of the sandbox with full network and disk access.') {
+                translateTree(span);
               }
             }
           }
@@ -723,7 +810,8 @@
       }
       for (const btn of document.querySelectorAll(
         '[data-testid="webview-download-show-in-folder"],[data-testid="webview-download-cancel"],' +
-        '[data-testid="webview-download-remove"]'
+        '[data-testid="webview-download-remove"],[data-testid="webview-downloads-close"],' +
+        '[data-testid="conversation-telemetry-icon-button"],[data-testid="conversation-telemetry-indicator"]'
       )) {
         translateAttrs(btn);
       }
@@ -763,6 +851,47 @@
           }
         }
       }
+      // 2.31.2 verified dialogs, selection pill, Side Questions, Coordinators, File/CSV/LSP & Browser controls.
+      for (const marker of document.querySelectorAll(
+        '[data-testid="create-coordinator-submit"],[data-testid="coordinator-settings-save"],[data-testid="confirm-delete-side-question"]'
+      )) {
+        const dialog = marker.closest('[role="dialog"]');
+        if (dialog) {
+          translateTree(dialog);
+          for (const el of dialog.querySelectorAll('[aria-label],[title]')) {
+            if (!el.matches('[data-testid^="coordinator-icon-option-"],[data-testid^="coordinator-color-option-"]')) {
+              translateAttrs(el);
+            }
+          }
+        }
+      }
+      for (const el of document.querySelectorAll(
+        '[data-testid="selection-quote-button"],[data-testid="selection-btw-button"],' +
+        '[data-testid="side-question-waiting-status"],[data-testid="side-question-followup-thinking"],' +
+        '[data-testid="file-tree-filter-empty"],[data-testid="csv-file-viewer"],' +
+        '[data-testid="builtin-browser-caa-open-external"],[data-testid="onboarding-auth-code-panel"],' +
+        '[data-testid="automation-model-unavailable"],[data-testid="browser-cert-interstitial"] h1,' +
+        '[data-testid="browser-cert-advanced-button"],[data-testid="browser-cert-back-button"]'
+      )) {
+        translateTree(el);
+      }
+      for (const inp of document.querySelectorAll(
+        '[data-testid="side-question-reply-input"],[data-testid="file-tree-filter-input"],[data-testid="csv-filter-input"]'
+      )) {
+        translatePlaceholder(inp);
+        translateAttrs(inp);
+      }
+      for (const el of document.querySelectorAll(
+        '[data-testid="side-question-reply-send"],[data-testid="side-question-popout"],' +
+        '[data-testid="side-question-tab-stop"],[data-testid="side-question-tab-promote"],' +
+        '[data-testid="side-question-tab-delete"],[data-testid="side-question-resize-handle"],' +
+        '[data-testid="coordinator-worker-card"] + button,[data-testid="file-tree-filter-clear"],' +
+        '[data-testid="file-tree-vcs-dot"],[data-testid="csv-filter-clear"],' +
+        '[data-testid="lsp-peek-references-close"],[data-testid="url-security-indicator"]'
+      )) {
+        translateTree(el);
+        translateAttrs(el);
+      }
     } finally {
       observe();
     }
@@ -792,10 +921,10 @@
       if (el.closest(UI_TARGETS) || isPermissionCard(el.closest('[tabindex="-1"]'))) return true;
       if (m.type !== 'childList') return false;
       return [...m.addedNodes, ...m.removedNodes].some(node => {
-        if (node.nodeType !== 1 || node.matches(SKIP) || protectedContent(node)) return false;
+        if (node.nodeType !== 1 || skippedControl(node) || protectedContent(node)) return false;
         if (node.matches(UI_TARGETS)) return true;
         return [...node.querySelectorAll(UI_TARGETS)].some(candidate =>
-          !candidate.closest(SKIP) && !protectedContent(candidate));
+          !skippedControl(candidate) && !protectedContent(candidate));
       });
     })) schedule();
   }

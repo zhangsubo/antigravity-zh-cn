@@ -1,5 +1,14 @@
 # 验证记录
 
+## 2026-11-12：2.31.2 版本适配与升级备份替换验证
+
+- 完成 Antigravity Desktop 2.31.2 适配，词库扩充至 1,672 条，更新 `tools/compatibility.json` 中 `2.31.2` 的 `dist/preload.js`、`dist/main.js`、`dist/tray.js` SHA-256 指纹与精确补丁规则。
+- 适配 2.31.2 界面结构变化：新版无折叠按钮权限审批卡（`permission-target-editor`、`permission-download-details` 与「是，仅允许本次下载」选项）、设置中心「浏览器」独立页签与「界面布局 / 对话布局」、项目/运行环境导航、协调器（Coordinators）侧边栏与弹窗、选中引用与追问（`/btw` / Side Question）控件、对话遥测状态按钮、文件树筛选/VCS 状态点、CSV 表格查看器外围工具栏、内置浏览器下载抽屉/证书拦截页/安全信息弹层，以及原生右键菜单 `(Default)` 动态后缀。
+- 边界保护加固：新增保护对话气泡视图（`[data-bubble-side="agent"]`）、进度响应流、追问用户消息、语音转写摘要、浏览器下载目录值、GCP 项目列表、设备选择器选项、网页 `prompt` 文本、下载文件名与打开按钮（`webview-download-open`）、站点域名、LSP 悬停卡片、CSV 表格单元格、协调器子任务卡片与权限下载详情值（`dd`）；修复动态插入受控 `input` / `textarea` 时被 `SKIP` 拦截导致不触发扫描的问题。
+- 安装器增强：针对应用自动更新后遗留旧版本 `.zh-cn-original` 备份与状态记录的场景，`doctor` 输出 `stale_backup_version`，`install` 新增显式 `--replace-stale-backup` 参数（仅在旧备份校验通过、版本号不同且当前应用为未打补丁的 Google 签名公证包时事务性替换，失败自动回滚）。
+- `npm test`：22 项 JavaScript DOM 测试、12 项 Python 测试全部通过；`npm run build` 构建产物与源码一致。
+- 已在本机 `/Applications/Antigravity.app`（2.31.2）完成 `--replace-stale-backup` 升级安装、完整 `restore`、重新安装、`codesign --verify --deep --strict` 签名校验及实机界面核验（含原版 2.29.1 / 2.31.2 `spctl --assess --type execute` 公证校验），`2.31.2` 的 `native_ui_tested` 设为 `true`。
+
 ## 2026-11-11：2.29.1 版本适配与方案 C 扩展验证
 
 - 完成 Antigravity Desktop 2.29.1 常规适配与方案 C（P0 + P1 + P2）扩展，词库扩充至 1,397 条。
