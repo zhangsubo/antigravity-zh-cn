@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v2.31.2.1). Leave empty to use package.json version.'
+        description: 'Release tag (e.g. v2.32.1.1). Leave empty to use package.json version.'
         required: false
         type: string
 permissions:

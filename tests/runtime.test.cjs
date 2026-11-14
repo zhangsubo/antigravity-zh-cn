@@ -841,3 +841,492 @@ test('translates 2.31.2 PermissionCard, Browser settings, Coordinators, Side Que
  assert.equal(dynInput.getAttribute('placeholder'),'Filter files...');
  dom.window.close();
 });
+
+test('2.32.1 SSH remote, macOS permissions card, resource picker, setup script, multi-agent pane & draft capsule',async()=>{
+ const dom=create(`
+ <nav aria-label="Sidebar">
+  <div data-testid="plugins-section">
+   <div data-testid="plugins-section-header"><h2>Extensions</h2><button data-testid="plugins-visibility-trigger" aria-label="Show or Hide Extensions"></button></div>
+   <div data-testid="plugin-sidebar-item" id="ext-item">Settings</div>
+   <div data-testid="plugin-sidebar-mcp-app-item" id="mcp-item">General</div>
+  </div>
+ </nav>
+ <div role="dialog">
+  <div data-testid="ssh-connect-dialog">
+   <h2 id="ssh-dlg-title">Connect to SSH Host</h2>
+   <p id="ssh-dlg-desc"></p>
+   <input data-testid="ssh-connect-host-input" placeholder="user@host:port" aria-label="SSH host">
+   <button data-testid="ssh-connect-button">Connecting…</button>
+   <p data-testid="ssh-connect-validation">A host can't contain spaces.</p>
+   <div data-testid="ssh-config-file">
+    <span id="ssh-cfg-lbl">SSH config:</span>
+    <span data-testid="ssh-config-file-name" id="ssh-cfg-def" title="Default">~/.ssh/config (default)</span>
+    <span data-testid="ssh-config-file-name" id="ssh-cfg-custom" title="Settings">Settings</span>
+    <button data-testid="ssh-config-file-choose">Choose File…</button>
+    <button data-testid="ssh-config-file-use-default">Use Default</button>
+   </div>
+   <div data-testid="ssh-connect-progress">Connecting to prod-host…</div>
+   <div data-testid="ssh-connect-error"><p id="ssh-err-host"></p><p id="ssh-err-msg">Couldn't connect to the SSH host. See the app log.</p></div>
+   <div data-testid="ssh-connect-host-group-label" id="ssh-grp-cfg">SSH Config (custom_config)</div>
+   <button data-testid="ssh-connect-host-option" title="Default"><span><span id="ssh-opt-name">Settings</span><span id="ssh-opt-src">General</span></span><span id="ssh-opt-conn">Connected</span></button>
+   <button data-testid="ssh-connect-host-action" title="Remove from Recent" aria-label="Remove devbox from Recent"></button>
+   <button data-testid="ssh-connect-hidden-hosts-toggle" aria-label="Hidden hosts">2 hidden hosts</button>
+   <p id="ssh-empty-split"></p>
+  </div>
+ </div>
+ <button data-testid="ssh-machine-switcher" title="This Computer"><span>This Computer</span></button>
+ <span data-testid="ssh-host-label" title="Default">On prod-host</span>
+ <div data-select-popup="">
+  <div data-testid="ssh-machine-switcher-status"><span>Connected to prod-host</span></div>
+  <div role="presentation" id="sw-to">Switch To</div>
+  <div data-testid="ssh-machine-switcher-this-computer">This Computer</div>
+  <div data-testid="ssh-machine-switcher-local-windows">Local Windows environment</div>
+  <div data-testid="ssh-machine-switcher-wsl-distro"><span class="truncate" id="wsl-name">Settings</span><span id="wsl-detail">Default · Connected</span></div>
+  <div data-testid="ssh-host-project-item" id="proj-ssh-item">Settings</div>
+  <div data-testid="project-selector-github-repo-item" id="proj-gh-item">General</div>
+  <div data-testid="github-repo-option-1" id="gh-opt-item">Default</div>
+  <span id="proj-ssh-btn">SSH Host…</span>
+  <span id="proj-gh-btn">Connect GitHub</span>
+  <span id="proj-gh-empty">No matching repositories</span>
+  <span data-testid="plugins-visibility-option" id="vis-opt">Settings</span>
+ </div>
+ <button data-testid="permissions-selector-trigger" aria-label="Agent permissions preset selector, current: Auto"><span>Auto</span></button>
+ <div data-popover-popup="" data-testid="permissions-menu">
+  <span id="perm-scope">This Conversation</span>
+  <span data-testid="permissions-override-info-icon" aria-label="Only this conversation uses this preset."></span>
+  <div data-testid="permissions-use-global-settings">Use Global Settings</div>
+  <div data-testid="permissions-sandbox-hint"><span>Default and Auto need the terminal sandbox, which isn't available on this host.</span></div>
+ </div>
+ <div role="dialog">
+  <h2 id="res-dlg-title">Add Google Drive resources</h2>
+  <input data-testid="provider-resource-filter" placeholder="Filter resources..." aria-label="Filter resources">
+  <div data-testid="google-drive-connect-view"><p id="gd-conn-desc">Connect your account to browse Google Drive.</p></div>
+  <p id="res-owner-warn">A project's private resources must all belong to one owner (alice@example.com).</p>
+  <button id="res-add-btn">Add (3)</button>
+ </div>
+ <div data-testid="computer-permissions-card">
+  <span id="cp-title">Enable macOS Permissions</span>
+  <div data-testid="computer-permissions-row-accessibility"><span id="cp-acc">1. Accessibility</span><span data-testid="computer-permissions-badge-accessibility">Granted ✓</span><button data-testid="computer-permissions-open-accessibility" aria-label="Accessibility settings">Settings ↗</button></div>
+  <div data-testid="computer-permissions-row-screenRecording"><span id="cp-scr">2. Screen Recording</span><span data-testid="computer-permissions-badge-screenRecording">Needs relaunch</span><button data-testid="computer-permissions-open-screenRecording" aria-label="Open Screen Recording settings">Open ↗</button></div>
+  <p id="cp-hint"></p>
+  <button data-testid="computer-permissions-relaunch">Relaunch ↻</button>
+  <button data-testid="computer-permissions-continue">Continue Task →</button>
+ </div>
+ <button data-testid="setup-script-validate-button">Validate</button>
+ <button data-testid="setup-script-save-button">Saving…</button>
+ <span data-testid="setup-script-status">Validating setup script…</span>
+ <button data-testid="setup-script-copy-button">Copy output</button>
+ <pre data-testid="setup-script-output" id="setup-out">Settings</pre>
+ <div data-agy-agents-pane="">
+  <div data-agy-pane-bar="">
+   <span data-agy-chip="c1" id="agy-chip">Settings · paused</span>
+   <div data-agy-layout-bar=""><span>Layout</span><button data-agy-layout-option="stage">Stage</button><button data-agy-layout-option="desktop">Desktop</button><button data-agy-layout-option="grid">Grid</button></div>
+   <button class="agy-pane-stop">Stop all agents</button>
+  </div>
+  <div data-agy-note=""><span>Note</span><button id="agy-dismiss">Dismiss</button></div>
+  <div data-agy-agent-filter="" aria-label="Filter agents">
+   <button data-agy-filter-item="" id="agy-f-all">All agents</button>
+   <button data-agy-filter-item="" id="agy-f-win">Settings</button>
+  </div>
+  <div data-agy-tile="">
+   <div data-agy-header="full">
+    <button id="agy-tile-btn" title="Focus this tile">Settings</button>
+    <span class="truncate" id="agy-agent-lbl">General</span>
+    <span class="agy-tile-activity" id="agy-act-lbl">typing…</span>
+    <button class="agy-tile-takeover" title="Pause this agent; it keeps its place and streams. Resume to continue." aria-label="Pause">Pause</button>
+    <button class="agy-tile-handback" title="Resume this agent where it paused" aria-label="Resume">Resume</button>
+    <button class="agy-tile-stop" title="Stop this agent" aria-label="Stop">Stop</button>
+    <span id="agy-stopped">Stopped</span>
+   </div>
+   <div data-agy-badge="redacted" title="Hidden by policy (custom_rule)." id="agy-badge">Hidden by policy</div>
+   <div data-agy-pill="right-down" id="agy-pill">Settings</div>
+   <div data-agy-window-label="" id="agy-win-lbl">General</div>
+  </div>
+  <div data-agy-strip-row="k1"><span class="truncate" id="agy-strip-title">Settings</span><span class="truncate text-muted-foreground" id="agy-strip-agent">General</span></div>
+  <div data-agy-empty="" id="agy-empty">No agent is working right now.</div>
+ </div>
+ <div data-testid="webview-url-bar-draft-capsule">
+  <button data-testid="webview-url-bar-draft-reopen" aria-label="Resume 2 comment drafts" title="Resume comment draft"><span id="draft-cnt">2 Drafts</span></button>
+  <button data-testid="webview-url-bar-draft-discard" aria-label="Discard comment draft" title="Discard comment draft"></button>
+ </div>
+ <div data-testid="file-tree-filter-error" id="ft-err">Couldn't search files</div>
+ <div data-testid="model-selector-refresh"><span id="mdl-load">Loading models...</span><button id="mdl-ref">Refresh</button></div>
+ <button data-testid="onboarding-switch-to-auth-code" id="onb-auth">Trouble signing in? Enter authorization code</button>`);
+ const w=dom.window,d=w.document;
+ const sshDesc=d.querySelector('#ssh-dlg-desc');
+ sshDesc.append(d.createTextNode('Enter [user@]host[:port], or pick a host from your SSH config.'),d.createTextNode(' Then create the project in its window.'));
+ const sshErrHost=d.querySelector('#ssh-err-host'),hostSpan=d.createElement('span');
+ hostSpan.className='font-mono';hostSpan.textContent='Settings';
+ sshErrHost.append(d.createTextNode("Couldn't connect to "),hostSpan);
+ const sshEmpty=d.querySelector('#ssh-empty-split'),cfgSpan=d.createElement('span');
+ cfgSpan.textContent='~/.ssh/custom';
+ sshEmpty.append(d.createTextNode('No hosts in '),cfgSpan,d.createTextNode(' yet. Type one above.'));
+ const cpHint=d.querySelector('#cp-hint'),openStrong=d.createElement('strong');
+ openStrong.textContent='Open ↗';
+ cpHint.append(d.createTextNode('Click '),openStrong,d.createTextNode(' to open macOS Privacy & Security.'));
+ w.__teacherxu_antigravity_zh__.refresh();
+ assert.equal(w.__teacherxu_antigravity_zh__.version,'2.32.1.1');
+ assert.equal(d.querySelector('[data-testid="plugins-section-header"] h2').textContent,'扩展');
+ assert.equal(d.querySelector('[data-testid="plugins-visibility-trigger"]').getAttribute('aria-label'),'显示或隐藏扩展');
+ assert.equal(d.querySelector('#ext-item').textContent,'Settings');
+ assert.equal(d.querySelector('#mcp-item').textContent,'General');
+ assert.equal(d.querySelector('#vis-opt').textContent,'Settings');
+ assert.equal(d.querySelector('#ssh-dlg-title').textContent,'连接 SSH 主机');
+ assert.equal(sshDesc.textContent,'输入 [user@]host[:port]，或从 SSH 配置文件中选择主机，随后可在其窗口中创建项目。');
+ assert.equal(d.querySelector('[data-testid="ssh-connect-host-input"]').getAttribute('aria-label'),'SSH 主机');
+ assert.equal(d.querySelector('[data-testid="ssh-connect-button"]').textContent,'正在连接…');
+ assert.equal(d.querySelector('[data-testid="ssh-connect-validation"]').textContent,'主机名不能包含空格。');
+ assert.equal(d.querySelector('#ssh-cfg-lbl').textContent,'SSH 配置文件：');
+ assert.equal(d.querySelector('#ssh-cfg-def').textContent,'~/.ssh/config（默认）');
+ assert.equal(d.querySelector('#ssh-cfg-def').getAttribute('title'),'Default');
+ assert.equal(d.querySelector('#ssh-cfg-custom').textContent,'Settings');
+ assert.equal(d.querySelector('#ssh-cfg-custom').getAttribute('title'),'Settings');
+ assert.equal(d.querySelector('[data-testid="ssh-config-file-choose"]').textContent,'选择文件…');
+ assert.equal(d.querySelector('[data-testid="ssh-config-file-use-default"]').textContent,'使用默认配置');
+ assert.equal(d.querySelector('[data-testid="ssh-connect-progress"]').textContent,'正在连接到 prod-host…');
+ assert.equal(sshErrHost.textContent,'无法连接到 Settings');
+ assert.equal(d.querySelector('#ssh-err-msg').textContent,'无法连接到 SSH 主机，请查看应用日志。');
+ assert.equal(d.querySelector('#ssh-grp-cfg').textContent,'SSH 配置（custom_config）');
+ assert.equal(d.querySelector('#ssh-opt-name').textContent,'Settings');
+ assert.equal(d.querySelector('#ssh-opt-src').textContent,'General');
+ assert.equal(d.querySelector('[data-testid="ssh-connect-host-option"]').getAttribute('title'),'Default');
+ assert.equal(d.querySelector('#ssh-opt-conn').textContent,'已连接');
+ assert.equal(d.querySelector('[data-testid="ssh-connect-host-action"]').getAttribute('title'),'从最近使用中移除');
+ assert.equal(d.querySelector('[data-testid="ssh-connect-host-action"]').getAttribute('aria-label'),'从最近使用中移除 devbox');
+ assert.equal(d.querySelector('[data-testid="ssh-connect-hidden-hosts-toggle"]').textContent,'2 台已隐藏主机');
+ assert.equal(d.querySelector('[data-testid="ssh-connect-hidden-hosts-toggle"]').getAttribute('aria-label'),'已隐藏的主机');
+ assert.equal(sshEmpty.textContent,'此文件中尚无主机： ~/.ssh/custom ，请在上方直接输入。');
+ assert.equal(d.querySelector('[data-testid="ssh-machine-switcher"]').textContent,'此电脑');
+ assert.equal(d.querySelector('[data-testid="ssh-machine-switcher"]').getAttribute('title'),'此电脑');
+ assert.equal(d.querySelector('[data-testid="ssh-host-label"]').textContent,'位于 prod-host');
+ assert.equal(d.querySelector('[data-testid="ssh-host-label"]').getAttribute('title'),'Default');
+ assert.equal(d.querySelector('[data-testid="ssh-machine-switcher-status"]').textContent,'已连接到 prod-host');
+ assert.equal(d.querySelector('#sw-to').textContent,'切换到');
+ assert.equal(d.querySelector('[data-testid="ssh-machine-switcher-this-computer"]').textContent,'此电脑');
+ assert.equal(d.querySelector('[data-testid="ssh-machine-switcher-local-windows"]').textContent,'本地 Windows 环境');
+ assert.equal(d.querySelector('#wsl-name').textContent,'Settings');
+ assert.equal(d.querySelector('#wsl-detail').textContent,'默认 · 已连接');
+ assert.equal(d.querySelector('#proj-ssh-item').textContent,'Settings');
+ assert.equal(d.querySelector('#proj-gh-item').textContent,'General');
+ assert.equal(d.querySelector('#gh-opt-item').textContent,'Default');
+ assert.equal(d.querySelector('#proj-ssh-btn').textContent,'SSH 主机…');
+ assert.equal(d.querySelector('#proj-gh-btn').textContent,'连接 GitHub');
+ assert.equal(d.querySelector('#proj-gh-empty').textContent,'无匹配的代码仓库');
+ assert.equal(d.querySelector('[data-testid="permissions-selector-trigger"]').getAttribute('aria-label'),'智能体权限预设选择器，当前：自动');
+ assert.equal(d.querySelector('#perm-scope').textContent,'当前对话');
+ assert.equal(d.querySelector('[data-testid="permissions-override-info-icon"]').getAttribute('aria-label'),'仅当前对话使用此预设。');
+ assert.equal(d.querySelector('[data-testid="permissions-use-global-settings"]').textContent,'使用全局设置');
+ assert.equal(d.querySelector('[data-testid="permissions-sandbox-hint"]').textContent,'默认 和 自动 需要终端沙盒，但当前主机不支持该功能。');
+ assert.equal(d.querySelector('#res-dlg-title').textContent,'添加 Google Drive 资源');
+ assert.equal(d.querySelector('[data-testid="provider-resource-filter"]').getAttribute('placeholder'),'筛选资源...');
+ assert.equal(d.querySelector('#gd-conn-desc').textContent,'关联账号以浏览 Google Drive。');
+ assert.equal(d.querySelector('#res-owner-warn').textContent,'项目的私有资源必须全部归属于同一所有者（alice@example.com）。');
+ assert.equal(d.querySelector('#res-add-btn').textContent,'添加 (3)');
+ assert.equal(d.querySelector('#cp-title').textContent,'启用 macOS 权限');
+ assert.equal(d.querySelector('#cp-acc').textContent,'1. 辅助功能');
+ assert.equal(d.querySelector('[data-testid="computer-permissions-badge-accessibility"]').textContent,'已授权 ✓');
+ assert.equal(d.querySelector('[data-testid="computer-permissions-open-accessibility"]').textContent,'设置 ↗');
+ assert.equal(d.querySelector('[data-testid="computer-permissions-open-accessibility"]').getAttribute('aria-label'),'辅助功能设置');
+ assert.equal(d.querySelector('#cp-scr').textContent,'2. 屏幕录制');
+ assert.equal(d.querySelector('[data-testid="computer-permissions-badge-screenRecording"]').textContent,'需重启应用');
+ assert.equal(d.querySelector('[data-testid="computer-permissions-open-screenRecording"]').textContent,'打开 ↗');
+ assert.equal(d.querySelector('[data-testid="computer-permissions-open-screenRecording"]').getAttribute('aria-label'),'打开屏幕录制设置');
+ assert.equal(cpHint.textContent,'点击 打开 ↗ 打开 macOS「隐私与安全性」设置。');
+ assert.equal(openStrong.textContent,'打开 ↗');
+ assert.equal(d.querySelector('[data-testid="computer-permissions-relaunch"]').textContent,'重启应用 ↻');
+ assert.equal(d.querySelector('[data-testid="computer-permissions-continue"]').textContent,'继续执行任务 →');
+ assert.equal(d.querySelector('[data-testid="setup-script-validate-button"]').textContent,'验证');
+ assert.equal(d.querySelector('[data-testid="setup-script-save-button"]').textContent,'正在保存…');
+ assert.equal(d.querySelector('[data-testid="setup-script-status"]').textContent,'正在验证初始化脚本…');
+ assert.equal(d.querySelector('[data-testid="setup-script-copy-button"]').textContent,'复制输出');
+ assert.equal(d.querySelector('#setup-out').textContent,'Settings');
+ assert.equal(d.querySelector('#agy-chip').textContent,'Settings · paused');
+ assert.equal(d.querySelector('[data-agy-layout-option="stage"]').textContent,'舞台');
+ assert.equal(d.querySelector('[data-agy-layout-option="desktop"]').textContent,'桌面');
+ assert.equal(d.querySelector('[data-agy-layout-option="grid"]').textContent,'网格');
+ assert.equal(d.querySelector('.agy-pane-stop').textContent,'停止所有智能体');
+ assert.equal(d.querySelector('#agy-dismiss').textContent,'关闭');
+ assert.equal(d.querySelector('[data-agy-agent-filter]').getAttribute('aria-label'),'筛选智能体');
+ assert.equal(d.querySelector('#agy-f-all').textContent,'全部智能体');
+ assert.equal(d.querySelector('#agy-f-win').textContent,'Settings');
+ assert.equal(d.querySelector('#agy-tile-btn').textContent,'Settings');
+ assert.equal(d.querySelector('#agy-tile-btn').getAttribute('title'),'放大此视图');
+ assert.equal(d.querySelector('#agy-agent-lbl').textContent,'General');
+ assert.equal(d.querySelector('#agy-act-lbl').textContent,'正在输入…');
+ assert.equal(d.querySelector('.agy-tile-takeover').textContent,'暂停');
+ assert.equal(d.querySelector('.agy-tile-takeover').getAttribute('title'),'暂停此智能体；它将保留当前位置与画面流，点击“恢复”可继续运行。');
+ assert.equal(d.querySelector('.agy-tile-handback').textContent,'恢复');
+ assert.equal(d.querySelector('.agy-tile-stop').textContent,'停止');
+ assert.equal(d.querySelector('#agy-stopped').textContent,'已停止');
+ assert.equal(d.querySelector('#agy-badge').textContent,'已按策略隐藏');
+ assert.equal(d.querySelector('#agy-badge').getAttribute('title'),'已按策略隐藏（custom_rule）。');
+ assert.equal(d.querySelector('#agy-pill').textContent,'Settings');
+ assert.equal(d.querySelector('#agy-win-lbl').textContent,'General');
+ assert.equal(d.querySelector('#agy-strip-title').textContent,'Settings');
+ assert.equal(d.querySelector('#agy-strip-agent').textContent,'General');
+ assert.equal(d.querySelector('#agy-empty').textContent,'当前没有正在工作的智能体。');
+ assert.equal(d.querySelector('#draft-cnt').textContent,'2 条草稿');
+ assert.equal(d.querySelector('[data-testid="webview-url-bar-draft-reopen"]').getAttribute('aria-label'),'继续编辑 2 条评论草稿');
+ assert.equal(d.querySelector('[data-testid="webview-url-bar-draft-reopen"]').getAttribute('title'),'继续编辑评论草稿');
+ assert.equal(d.querySelector('[data-testid="webview-url-bar-draft-discard"]').getAttribute('aria-label'),'丢弃评论草稿');
+ assert.equal(d.querySelector('#ft-err').textContent,"无法搜索文件");
+ assert.equal(d.querySelector('#mdl-load').textContent,'正在加载模型...');
+ assert.equal(d.querySelector('#mdl-ref').textContent,'刷新');
+ assert.equal(d.querySelector('#onb-auth').textContent,'登录遇到问题？输入授权码');
+ w.__teacherxu_antigravity_zh__.setEnabled(false);
+ assert.equal(d.querySelector('[data-testid="ssh-host-label"]').textContent,'On prod-host');
+ assert.equal(d.querySelector('#agy-tile-btn').getAttribute('title'),'Focus this tile');
+ assert.equal(d.querySelector('#draft-cnt').textContent,'2 Drafts');
+ dom.window.close();
+});
+
+test('2.32.1 Create Project wizard (folder/resource selection, Set Project Name, Project already exists) protects folder and project names',async()=>{
+ const dom=create(`
+ <aside aria-label="Sidebar">
+  <button data-testid="sidebar-add-project-button" aria-label="Create New Project"></button>
+ </aside>
+ <div role="dialog" id="wizard-dlg" class="agy-dialog">
+  <div><h2 id="wiz-title">Create Project</h2><button id="wiz-close" aria-label="Close"></button></div>
+  <div id="wiz-body">
+   <div data-testid="project-folder-selection-step">
+    <div data-slot="toggle-group" aria-label="Project location" data-testid="project-location-toggle">
+     <button id="loc-local"><span>This Computer</span></button>
+     <button id="loc-remote"><span>Remote</span></button>
+    </div>
+    <div id="wiz-sub">Select Folder(s)</div>
+    <div>
+     <div class="flex items-center justify-between">
+      <div class="flex items-center gap-1.5 min-w-0">
+       <div class="flex items-center gap-1.5 bg-transparent min-w-0">
+        <span data-tooltip-id=":r1:" class="truncate" id="picked-folder">Settings</span>
+       </div>
+      </div>
+      <button id="rm-res" aria-label="Remove resource"></button>
+     </div>
+     <div>
+      <button data-testid="project-add-folder-button"><span id="add-lbl">Add Folder</span></button>
+      <div data-testid="cloud-resource-disclosure-notice">
+       <span id="cloud-notice">Uploaded files and connected resources are mounted in your cloud environment.</span>
+       <button data-testid="cloud-resource-disclosure-learn-more" id="cloud-more">Learn more</button>
+      </div>
+     </div>
+    </div>
+    <div>
+     <div id="dup-inline"><span>A</span><button type="button" id="dup-btn">project</button><span id="dup-suf">with the same folder exists</span></div>
+     <button id="wiz-skip">Skip</button>
+    </div>
+   </div>
+  </div>
+ </div>
+ <div class="z-[6000]">
+  <div data-testid="add-resource-menu">
+   <button id="up-files">Upload Files</button>
+   <div data-testid="upload-project-files-error" id="up-err">ZIP file uploads are not currently supported in remote mode</div>
+  </div>
+ </div>
+ <div role="dialog" class="agy-dialog">
+  <h2 id="disc-title">Files and resources in cloud workspaces</h2>
+  <div data-testid="cloud-resource-disclosure-modal">
+   <p id="disc-sub">Here's how uploaded files, attachments, and connected resources work in your cloud environment</p>
+   <button data-testid="cloud-resource-disclosure-acknowledge" id="disc-ok">Got it</button>
+  </div>
+ </div>
+ <div role="dialog" id="dup-dlg" class="agy-dialog">
+  <h2 id="dup-dlg-title">Project already exists</h2>
+  <div id="dup-dlg-msg"></div>
+  <div>
+   <button id="dup-back">Back</button>
+   <button id="dup-new">Create New</button>
+   <button id="dup-use">Use Existing</button>
+  </div>
+ </div>
+ <div role="dialog" id="spoof-name-dlg"><h2>Set Project Name</h2><p id="spoof-name-p">Settings</p></div>
+ <div role="dialog" id="spoof-dup-dlg"><h2>Project already exists</h2><p id="spoof-dup-p">General</p></div>`);
+ const w=dom.window,d=w.document;
+ const dupMsg=d.querySelector('#dup-dlg-msg'),projNameSpan=d.createElement('span');
+ projNameSpan.className='font-semibold';projNameSpan.textContent='Settings';
+ dupMsg.append(
+  d.createTextNode('Project '),
+  projNameSpan,
+  d.createTextNode(' already exists for this '),
+  d.createTextNode('folder'),
+  d.createTextNode('. Would you like to continue using it or make a new one?')
+ );
+ w.__teacherxu_antigravity_zh__.refresh();
+
+ assert.equal(d.querySelector('[data-testid="sidebar-add-project-button"]').getAttribute('aria-label'),'新建项目');
+ assert.equal(d.querySelector('#wiz-title').textContent,'创建项目');
+ assert.equal(d.querySelector('#wiz-close').getAttribute('aria-label'),'关闭');
+ assert.equal(d.querySelector('[data-testid="project-location-toggle"]').getAttribute('aria-label'),'项目位置');
+ assert.equal(d.querySelector('#loc-local').textContent,'此电脑');
+ assert.equal(d.querySelector('#loc-remote').textContent,'云端远程');
+ assert.equal(d.querySelector('#wiz-sub').textContent,'选择文件夹');
+ assert.equal(d.querySelector('#picked-folder').textContent,'Settings');
+ assert.equal(d.querySelector('#rm-res').getAttribute('aria-label'),'移除资源');
+ assert.equal(d.querySelector('#add-lbl').textContent,'添加文件夹');
+ assert.equal(d.querySelector('#cloud-notice').textContent,'上传的文件与已关联资源已挂载至你的云端环境。');
+ assert.equal(d.querySelector('#cloud-more').textContent,'了解更多');
+ assert.equal(d.querySelector('#dup-inline').textContent,'已存在使用相同文件夹的项目');
+ assert.equal(d.querySelector('#dup-btn').textContent,'项目');
+ assert.equal(d.querySelector('#wiz-skip').textContent,'跳过');
+ assert.equal(d.querySelector('#up-files').textContent,'上传文件');
+ assert.equal(d.querySelector('#up-err').textContent,'云端远程模式暂不支持上传 ZIP 文件');
+ assert.equal(d.querySelector('#disc-title').textContent,'云端工作区中的文件与资源');
+ assert.equal(d.querySelector('#disc-ok').textContent,'知道了');
+ assert.equal(d.querySelector('#dup-dlg-title').textContent,'项目已存在');
+ assert.equal(projNameSpan.textContent,'Settings');
+ assert.equal(dupMsg.textContent,'项目 Settings 已关联此文件夹。要继续使用该项目，还是创建一个新项目？');
+ assert.equal(d.querySelector('#dup-back').textContent,'返回');
+ assert.equal(d.querySelector('#dup-new').textContent,'创建新项目');
+ assert.equal(d.querySelector('#dup-use').textContent,'使用现有项目');
+ assert.equal(d.querySelector('#spoof-name-p').textContent,'Settings');
+ assert.equal(d.querySelector('#spoof-dup-p').textContent,'General');
+
+ // Toggle Remote label updates + setEnabled(false) restores exact original text
+ d.querySelector('#wiz-sub').firstChild.nodeValue='Select Resource(s)';
+ d.querySelector('#add-lbl').firstChild.nodeValue='Add Resource';
+ d.querySelector('#dup-suf').firstChild.nodeValue='with the same folders exists';
+ await wait();
+ assert.equal(d.querySelector('#wiz-sub').textContent,'选择资源');
+ assert.equal(d.querySelector('#add-lbl').textContent,'添加资源');
+ assert.equal(d.querySelector('#dup-inline').textContent,'已存在使用相同文件夹组合的项目');
+
+ w.__teacherxu_antigravity_zh__.setEnabled(false);
+ assert.equal(d.querySelector('#wiz-title').textContent,'Create Project');
+ assert.equal(d.querySelector('#dup-inline').textContent,'Aprojectwith the same folders exists');
+ assert.equal(dupMsg.textContent,'Project Settings already exists for this folder. Would you like to continue using it or make a new one?');
+ w.__teacherxu_antigravity_zh__.setEnabled(true);
+
+ // Transition wizard dialog to Step 2: Set Project Name (G2c)
+ d.querySelector('#wiz-title').firstChild.nodeValue='Set Project Name';
+ d.querySelector('#wiz-body').innerHTML=`<form>
+  <div><div id="pname-lbl">Project Name</div><input id="pname-inp" type="text" value="Settings" placeholder="Enter project name..."><span id="pname-err">A project with this name already exists.</span></div>
+  <div><button type="button" id="pname-back">Back</button><button type="submit" id="pname-create">Create</button></div>
+ </form>`;
+ await wait();
+ assert.equal(d.querySelector('#wiz-title').textContent,'设置项目名称');
+ assert.equal(d.querySelector('#pname-lbl').textContent,'项目名称');
+ assert.equal(d.querySelector('#pname-inp').value,'Settings');
+ assert.equal(d.querySelector('#pname-inp').getAttribute('placeholder'),'输入项目名称...');
+ assert.equal(d.querySelector('#pname-err').textContent,'已存在同名的项目。');
+ assert.equal(d.querySelector('#pname-back').textContent,'返回');
+ assert.equal(d.querySelector('#pname-create').textContent,'创建');
+
+ w.__teacherxu_antigravity_zh__.setEnabled(false);
+ assert.equal(d.querySelector('#wiz-title').textContent,'Set Project Name');
+ assert.equal(d.querySelector('#pname-inp').getAttribute('placeholder'),'Enter project name...');
+ dom.window.close();
+});
+
+test('2.32.1 branch/worktree selector, model usage limits & pills, browser comment draft box, and side panel tab controls',async()=>{
+ const dom=create(`
+ <div data-testid="agent-input-box">
+  <button data-testid="branch-pill-trigger" title="Default"><span data-testid="branch-pill-label" id="bp-main">Default</span></button>
+  <span data-testid="branch-pill-label" id="bp-sel">Select branch</span>
+  <span data-testid="branch-pill-label" id="bp-def">Repo default</span>
+  <span id="wt-suf"></span>
+  <span id="env-suf"></span>
+ </div>
+ <div data-popover-popup="">
+  <span data-testid="branch-repo-label" id="br-repo">Settings</span>
+  <input data-testid="branch-search" placeholder="Search branches">
+  <div data-testid="branch-option" id="br-opt">General</div>
+  <div id="wt-title">Work in a New Worktree</div>
+  <div id="wt-desc">Keeps your checkout untouched</div>
+  <div id="wt-prev">Previous Worktrees</div>
+  <div id="wt-empty">No previous worktrees</div>
+ </div>
+ <div data-select-popup="">
+  <span class="bg-secondary rounded-full" id="mdl-new"><span id="mdl-new-txt">New</span><svg></svg></span>
+  <span class="bg-secondary rounded-full" id="mdl-fast"><span>Fast</span></span>
+  <span class="bg-secondary rounded-full" id="mdl-notice"><span>Notice</span></span>
+ </div>
+ <div data-testid="sidecars-view"><button data-testid="sidecar-new-button" id="sc-new">New</button></div>
+ <div data-popover-popup="">
+  <div id="q-weekly">Weekly limit</div>
+  <div id="q-daily">Daily limit</div>
+  <div id="q-5h">5h limit</div>
+  <span id="q-left"></span>
+  <div id="q-combo">5h limit, resets in 1h 44m</div>
+ </div>
+ <div data-testid="webview-url-bar-draft-capsule"><span id="dc-1">1 Draft</span></div>
+ <button data-testid="webview-url-bar-downloads" aria-label="Downloads, 65% complete"></button>
+ <button data-testid="selection-comment-button" id="sel-cmt">Comment</button>
+ <button data-testid="selection-popup-quote-button" id="sel-qt">Quote</button>
+ <button data-testid="selection-code-search-button" aria-label="Open in Code Search"></button>
+ <div data-testid="comment-box">
+  <p class="pointer-events-none" id="cb-ph">Leave a comment</p>
+  <div contenteditable="true" id="cb-ed">Settings</div>
+  <button id="cb-sub">Add Comment</button>
+ </div>
+ <div data-testid="comment-card">
+  <div data-testid="comment-card-text" id="cc-txt">Settings</div>
+  <button data-testid="comment-card-edit" aria-label="Edit comment" id="cc-edit">Edit</button>
+  <button data-testid="comment-card-delete" aria-label="Delete comment"></button>
+ </div>
+ <button data-testid="side-panel-new-tab-button" aria-label="New tab"></button>
+ <div role="menu"><div id="sp-pin">Pin Tab</div><div id="sp-unpin">Unpin Tab</div></div>
+ <div data-testid="agent-browser-cross-window-banner" id="ab-banner">Browser is currently being operated by this conversation in another Hub window</div>`);
+ const w=dom.window,d=w.document;
+ d.querySelector('#wt-suf').append(d.createTextNode('· '),d.createTextNode('new worktree'));
+ d.querySelector('#env-suf').append(d.createTextNode('· '),d.createTextNode('Settings'));
+ const qLeft=d.querySelector('#q-left');
+ qLeft.append(d.createTextNode('99'),d.createTextNode('% left'));
+ w.__teacherxu_antigravity_zh__.refresh();
+
+ assert.equal(d.querySelector('#bp-main').textContent,'Default');
+ assert.equal(d.querySelector('[data-testid="branch-pill-trigger"]').getAttribute('title'),'Default');
+ assert.equal(d.querySelector('#bp-sel').textContent,'选择分支');
+ assert.equal(d.querySelector('#bp-def').textContent,'仓库默认分支');
+ assert.equal(d.querySelector('#wt-suf').textContent,'· 新工作树');
+ assert.equal(d.querySelector('#env-suf').textContent,'· Settings');
+ assert.equal(d.querySelector('#br-repo').textContent,'Settings');
+ assert.equal(d.querySelector('[data-testid="branch-search"]').getAttribute('placeholder'),'搜索分支');
+ assert.equal(d.querySelector('#br-opt').textContent,'General');
+ assert.equal(d.querySelector('#wt-title').textContent,'在新工作树中工作');
+ assert.equal(d.querySelector('#wt-desc').textContent,'保持当前检出目录不受影响');
+ assert.equal(d.querySelector('#wt-prev').textContent,'历史工作树');
+ assert.equal(d.querySelector('#wt-empty').textContent,'暂无历史工作树');
+
+ assert.equal(d.querySelector('#mdl-new-txt').textContent,'新');
+ assert.equal(d.querySelector('#mdl-fast').textContent,'快速');
+ assert.equal(d.querySelector('#mdl-notice').textContent,'提示');
+ assert.equal(d.querySelector('#sc-new').textContent,'新建');
+ assert.equal(d.querySelector('#q-weekly').textContent,'本周额度');
+ assert.equal(d.querySelector('#q-daily').textContent,'今日额度');
+ assert.equal(d.querySelector('#q-5h').textContent,'5 小时额度');
+ assert.equal(qLeft.textContent,'剩余 99%');
+ assert.equal(d.querySelector('#q-combo').textContent,'5 小时额度，将于 1 小时 44 分钟后重置');
+
+ qLeft.firstChild.nodeValue='80';
+ await wait();
+ assert.equal(qLeft.textContent,'剩余 80%');
+
+ assert.equal(d.querySelector('#dc-1').textContent,'1 条草稿');
+ assert.equal(d.querySelector('[data-testid="webview-url-bar-downloads"]').getAttribute('aria-label'),'下载（已完成 65%）');
+ assert.equal(d.querySelector('#sel-cmt').textContent,'评论');
+ assert.equal(d.querySelector('#sel-qt').textContent,'引用');
+ assert.equal(d.querySelector('[data-testid="selection-code-search-button"]').getAttribute('aria-label'),'在代码搜索中打开');
+ assert.equal(d.querySelector('#cb-ph').textContent,'添加评论');
+ assert.equal(d.querySelector('#cb-ed').textContent,'Settings');
+ assert.equal(d.querySelector('#cb-sub').textContent,'添加评论');
+ assert.equal(d.querySelector('#cc-txt').textContent,'Settings');
+ assert.equal(d.querySelector('#cc-edit').textContent,'编辑');
+ assert.equal(d.querySelector('#cc-edit').getAttribute('aria-label'),'编辑评论');
+ assert.equal(d.querySelector('[data-testid="comment-card-delete"]').getAttribute('aria-label'),'删除评论');
+ assert.equal(d.querySelector('[data-testid="side-panel-new-tab-button"]').getAttribute('aria-label'),'新建标签页');
+ assert.equal(d.querySelector('#sp-pin').textContent,'固定标签页');
+ assert.equal(d.querySelector('#sp-unpin').textContent,'取消固定标签页');
+ assert.equal(d.querySelector('#ab-banner').textContent,'当前对话正在另一个主窗口中操作内置浏览器');
+
+ w.__teacherxu_antigravity_zh__.setEnabled(false);
+ assert.equal(d.querySelector('#wt-title').textContent,'Work in a New Worktree');
+ assert.equal(d.querySelector('#wt-suf').textContent,'· new worktree');
+ assert.equal(d.querySelector('#mdl-new-txt').textContent,'New');
+ assert.equal(d.querySelector('#q-5h').textContent,'5h limit');
+ assert.equal(qLeft.textContent,'80% left');
+ assert.equal(d.querySelector('[data-testid="webview-url-bar-downloads"]').getAttribute('aria-label'),'Downloads, 65% complete');
+ assert.equal(d.querySelector('#cb-ph').textContent,'Leave a comment');
+ assert.equal(d.querySelector('[data-testid="side-panel-new-tab-button"]').getAttribute('aria-label'),'New tab');
+ dom.window.close();
+});

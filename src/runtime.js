@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const dictionary = /*__DICTIONARY__*/ {};
-  const VERSION = '2.31.2.1';
+  const VERSION = '2.32.1.1';
   const KEY = '__teacherxu_antigravity_zh__';
   if (window[KEY]) return;
   // The native application serves its UI locally. Never translate sign-in sites.
@@ -24,13 +24,21 @@
     '[data-testid="url-security-host"],[data-testid="url-security-origin"],' +
     '[data-testid="lsp-symbol-hover-card"],[data-testid="lsp-reference-item"],[data-testid="csv-scroll-viewport"],' +
     '[data-testid="coordinator-worker-card"],[data-testid="coordinator-chat-header"],' +
-    '[data-testid="permission-download-details"] dd,[data-testid="resource-link"]';
+    '[data-testid="permission-download-details"] dd,[data-testid="resource-link"],' +
+    '[data-testid="ssh-host-project-item"],[data-testid="project-selector-github-repo-item"],' +
+    '[data-testid^="github-repo-option-"],[data-testid="ssh-connect-host-option"] > span:first-of-type,' +
+    '[data-testid="ssh-connect-error"] span.font-mono,[data-testid="ssh-machine-switcher-wsl-distro"] .truncate,' +
+    '[data-testid="plugins-visibility-option"],[data-testid="plugin-sidebar-item"],[data-testid="plugin-sidebar-mcp-app-item"],' +
+    '[data-testid="branch-repo-label"],[data-testid="branch-option"],' +
+    '[data-agy-chip],[data-agy-pill],[data-agy-window-label],[data-agy-filter-item]:not(:first-child),' +
+    '[data-agy-header] > span.truncate,[data-agy-strip-row] > span.truncate,' +
+    '.bg-transparent.min-w-0 > span.truncate[data-tooltip-id]';
   // These nodes contain model/user data, even when rendered inside a UI popup.
   const CONTENT = '[data-testid="ask-question-header-text"],[data-testid="ask-question-option-text"],' +
     '[data-testid="planner-response-text"],[data-testid="progress-update-response-text"],[data-bubble-side="agent"],' +
     '[data-testid="user-message-content"],[data-testid="side-question-followup-user"],[data-testid="voice-transcript-summary"],' +
     '[data-testid="markdown-code-block-preview"],[data-testid="background-task-command"],' +
-    '[data-testid="setup-script-output"],[data-testid="browser-subagent-thinking"]';
+    '[data-testid="setup-script-output"],[data-testid="browser-subagent-thinking"],[data-testid="comment-card-text"]';
   const POPUPS = '.z-\\[6000\\],[role="menu"],[data-select-popup],[data-popover-popup],' +
     '[data-hover-card-popup],[role="tooltip"]';
   // Discover new UI roots, but do not schedule a full scan for unrelated prose changes.
@@ -58,6 +66,8 @@
     '[data-testid="voice-picker"],[data-testid="customizations-search"],' +
     '[data-testid="customizations-marketplace"],[data-testid="customizations-installed"],[data-testid="plugins-tabs"],' +
     '[data-testid="selection-quote-button"],[data-testid="selection-btw-button"],' +
+    '[data-testid="selection-comment-button"],[data-testid="selection-popup-quote-button"],[data-testid="selection-code-search-button"],' +
+    '[data-testid="comment-box"],[data-testid="comment-card"],' +
     '[data-testid="side-question-panel"],[data-testid="confirm-delete-side-question"],' +
     '[data-testid="create-coordinator-submit"],[data-testid="coordinator-settings-save"],' +
     '[data-testid="new-coordinator-button"],[data-testid="coordinator-section-header"],' +
@@ -66,6 +76,17 @@
     '[data-testid="url-security-indicator"],[data-testid="browser-cert-interstitial"],' +
     '[data-testid="builtin-browser-caa-open-external"],[data-testid="onboarding-auth-code-panel"],' +
     '[data-testid="automation-model-unavailable"],' +
+    '[data-testid="computer-permissions-card"],[data-testid="ssh-connect-dialog"],' +
+    '[data-testid="ssh-machine-switcher"],[data-testid="ssh-host-label"],' +
+    '[data-testid="permissions-selector-trigger"],[data-testid="provider-resource-filter"],' +
+    '[data-testid="google-drive-connect-view"],[data-testid="setup-script-save-button"],' +
+    '[data-testid="setup-script-validate-button"],[data-testid="setup-script-status"],' +
+    '[data-testid="setup-script-copy-button"],[data-testid="plugins-section-header"],' +
+    '[data-testid="plugins-visibility-trigger"],[data-testid="webview-url-bar-draft-capsule"],[data-testid="webview-url-bar-downloads"],' +
+    '[data-testid="side-panel-new-tab-button"],[data-testid="side-panel-pending-terminal-tab"],[data-testid="agent-browser-cross-window-banner"],' +
+    '[data-testid="file-tree-filter-error"],[data-testid="model-selector-refresh"],' +
+    '[data-testid="onboarding-switch-to-auth-code"],[data-agy-agents-pane],' +
+    '[data-testid="project-folder-selection-step"],[data-testid="cloud-resource-disclosure-modal"],' +
     'input[placeholder="Search conversations..."]';
   const records = new Map();
   const placeholderRecords = new Map();
@@ -274,6 +295,105 @@
     if (match) {
       return `未找到与“${match[1]}”匹配的 MCP 服务器`;
     }
+    match = key.match(/^Connecting to (.+)…$/);
+    if (match) {
+      return `正在连接到 ${match[1]}…`;
+    }
+    match = key.match(/^Connected to (.+)$/);
+    if (match) {
+      return `已连接到 ${match[1]}`;
+    }
+    match = key.match(/^SSH Config \((.+)\)$/);
+    if (match) {
+      return `SSH 配置（${match[1]}）`;
+    }
+    match = key.match(/^(\d+) hidden hosts?$/);
+    if (match) {
+      return `${match[1]} 台已隐藏主机`;
+    }
+    match = key.match(/^Remove (.+) from Recent$/);
+    if (match) {
+      return `从最近使用中移除 ${match[1]}`;
+    }
+    match = key.match(/^Hide (.+) from this list$/);
+    if (match) {
+      return `从此列表中隐藏 ${match[1]}`;
+    }
+    match = key.match(/^Show (.+) in the list again$/);
+    if (match) {
+      return `重新在列表中显示 ${match[1]}`;
+    }
+    match = key.match(/^On (\S+)$/);
+    if (match) {
+      return `位于 ${match[1]}`;
+    }
+    match = key.match(/^Agent permissions preset selector, current:\s*(.+)$/);
+    if (match) {
+      return `智能体权限预设选择器，当前：${dictionary[match[1]] || match[1]}`;
+    }
+    match = key.match(/^Agent permissions preset:\s*([^,]+),\s*(.+)$/);
+    if (match) {
+      return `智能体权限预设：${dictionary[match[1]] || match[1]}，${dictionary[match[2]] || match[2]}`;
+    }
+    match = key.match(/^(.+) needs? the terminal sandbox, which isn't available on this host\.$/);
+    if (match) {
+      const presets = match[1].split(/\s+and\s+/).map(p => dictionary[p.trim()] || p.trim()).join(' 和 ');
+      return `${presets} 需要终端沙盒，但当前主机不支持该功能。`;
+    }
+    match = key.match(/^Add (Google Drive|GitHub) resources$/);
+    if (match) {
+      return `添加 ${match[1]} 资源`;
+    }
+    match = key.match(/^Connect your account to browse (Google Drive|GitHub)\.$/);
+    if (match) {
+      return `关联账号以浏览 ${match[1]}。`;
+    }
+    match = key.match(/^Add \((\d+)\)$/);
+    if (match) {
+      return `添加 (${match[1]})`;
+    }
+    match = key.match(/^A project's private resources must all belong to one owner \((.+)\)\.$/);
+    if (match) {
+      return `项目的私有资源必须全部归属于同一所有者（${match[1]}）。`;
+    }
+    match = key.match(/^(\d+) accounts?$/);
+    if (match) {
+      return `${match[1]} 个账号`;
+    }
+    match = key.match(/^(\d+) Drafts?$/);
+    if (match) {
+      return `${match[1]} 条草稿`;
+    }
+    match = key.match(/^Resume (\d+) comment drafts?$/);
+    if (match) {
+      return `继续编辑 ${match[1]} 条评论草稿`;
+    }
+    match = key.match(/^Hidden by policy \((.+)\)\.$/);
+    if (match) {
+      return `已按策略隐藏（${match[1]}）。`;
+    }
+    match = key.match(/^([A-Z0-9]{1,8}) file uploads are not currently supported in remote mode$/);
+    if (match) {
+      return `云端远程模式暂不支持上传 ${match[1]} 文件`;
+    }
+    match = key.match(/^(\d+)([smhd]) limit$/i);
+    if (match) {
+      return `${match[1]} ${{ s: '秒', m: '分钟', h: '小时', d: '天' }[match[2].toLowerCase()]}额度`;
+    }
+    match = key.match(/^(\d+)% left$/i);
+    if (match) {
+      return `剩余 ${match[1]}%`;
+    }
+    match = key.match(/^(Daily limit|Weekly limit|\d+[smhd] limit),\s*resets in (.+)$/i);
+    if (match) {
+      const cap = match[1][0].toUpperCase() + match[1].slice(1).toLowerCase();
+      const head = dictionary[cap] || translateDynamic(match[1]);
+      return `${head}，将于 ${formatDuration(match[2])}后重置`;
+    }
+    match = key.match(/^Downloads, (\d+)% complete$/);
+    if (match) {
+      return `下载（已完成 ${match[1]}%）`;
+    }
     return null;
   }
   const settingsNavIds = new Set(['General', 'App', 'Appearance', 'Browser', 'Project 4K',
@@ -293,6 +413,11 @@
   function protectedNode(node, allowPermissionOption = false) {
     const element = node.nodeType === 1 ? node : node.parentElement;
     if (!element || element.closest(SKIP) || protectedContent(element, allowPermissionOption)) return true;
+    if (element.closest('[data-agy-header] > button:first-of-type')) return true;
+    const sshConfigName = element.closest('[data-testid="ssh-config-file-name"]');
+    if (sshConfigName && originalText(sshConfigName) !== '~/.ssh/config (default)') return true;
+    const branchPill = element.closest('[data-testid="branch-pill-label"]');
+    if (branchPill && !['Select branch', 'Repo default'].includes(originalText(branchPill))) return true;
     // Settings' account and workspace/project nav buttons contain user data, not UI copy.
     const button = element.closest('button');
     if (!button) return false;
@@ -308,7 +433,9 @@
     'Configure allowed and denied URLs for the browser subagent (invoked with /browser). Requires',
     'For Antigravity Business consumption options, see', 'Visit',
     'to ask for content changes for legal reasons.', 'to have the agent generate a plan.',
-    'when working', 'in this project', 'in these conversations', 'when working in this project.']);
+    'when working', 'in this project', 'in these conversations', 'when working in this project.',
+    'Click', 'to open macOS Privacy & Security.', 'Then create the project in its window.',
+    "Couldn't connect to", 'No hosts in', 'yet. Type one above.']);
   function translateNode(node, allowPermissionOption = false) {
     if (protectedNode(node, allowPermissionOption)) return;
     const current = node.nodeValue;
@@ -325,11 +452,19 @@
       (/\S/.test(nextText) && /^\s/.test(nextText)) ||
       (/^[A-Z][a-z]+\s+$/.test(current) && node.nextSibling?.tagName === 'STRONG');
     if (inlineConcat && !key.endsWith(':') && !allowedFragments.has(key)) return;
-    const target = Object.hasOwn(dictionary, key) ? dictionary[key] : translateDynamic(key);
+    const target = key === 'New' && node.parentElement?.closest('.rounded-full.bg-secondary')
+      ? '新'
+      : (Object.hasOwn(dictionary, key) ? dictionary[key] : translateDynamic(key));
     if (!target) return;
     const translated = current.replace(/\S[\s\S]*\S|\S/, target);
     records.set(node, { original: current, translated });
     node.nodeValue = translated;
+  }
+  function setRecordedText(node, next) {
+    const raw = english(node);
+    if (node.nodeValue === next && records.get(node)?.original === raw) return;
+    records.set(node, { original: raw, translated: next });
+    node.nodeValue = next;
   }
   function translateMultiTextElement(el, allowPermissionOption = false) {
     if (el.children.length > 0 || el.childNodes.length < 2 || protectedNode(el, allowPermissionOption)) return false;
@@ -372,7 +507,8 @@
   }
   const skippedControl = el => el.matches('input,textarea') ? el.parentElement?.closest(SKIP) : el.closest(SKIP);
   function translateAttrs(el) {
-    if (!el || protectedContent(el) || skippedControl(el)) return;
+    if (!el || protectedContent(el) || skippedControl(el) ||
+      el.matches('[data-testid="ssh-config-file-name"],[data-testid="ssh-connect-host-option"],[data-testid="ssh-host-label"],[data-testid="branch-pill-trigger"]')) return;
     let entry = attrRecords.get(el);
     for (const attr of ['title', 'aria-label']) {
       const current = el.getAttribute(attr);
@@ -445,7 +581,7 @@
   const chatInputPlaceholders = new Set(['Ask anything, @ to mention, / for actions',
     'Ask anything, @ to mention', 'Ask anything',
     'Message subagent, @ to mention, / for actions', 'Message subagent, @ to mention',
-    'Listening. Ask anything.']);
+    'Listening. Ask anything.', 'Leave a comment', 'Edit comment']);
   const historySafeTexts = new Set(['Conversation History',
     'Manage and revisit your past agent sessions.', 'Active', 'Archived', 'Select', 'Done',
     'Select all', 'Deselect all', 'Archive', 'Unarchive', 'Delete', 'Show more',
@@ -564,11 +700,15 @@
         }
         for (const el of sidebar.querySelectorAll(
           '[data-testid="conversation-archive-button"],[data-testid="conversation-pin-button"],' +
-          '[data-testid="conversation-kebab"],[data-testid="new-coordinator-button"]'
+          '[data-testid="conversation-kebab"],[data-testid="new-coordinator-button"],' +
+          '[data-testid="plugins-visibility-trigger"],[data-testid="sidebar-add-project-button"]'
         )) {
           translateAttrs(el);
         }
-        for (const el of sidebar.querySelectorAll('[data-testid="section-header"] h2,[data-testid="coordinator-section-header"] h2')) {
+        for (const el of sidebar.querySelectorAll(
+          '[data-testid="section-header"] h2,[data-testid="coordinator-section-header"] h2,' +
+          '[data-testid="plugins-section-header"] h2'
+        )) {
           translateTree(el);
         }
         for (const el of sidebar.querySelectorAll('span')) {
@@ -704,6 +844,9 @@
       // Portal dropdown menus, select popups, popovers, hover cards, and tooltips.
       for (const el of document.querySelectorAll(POPUPS)) {
         translateTree(el);
+        for (const sub of el.querySelectorAll('[data-testid="permissions-override-info-icon"]')) {
+          translateAttrs(sub);
+        }
       }
       // Right-side Overview panel (only known UI labels, never file/artifact names).
       for (const panel of document.querySelectorAll('[data-testid="overview-panel"]')) {
@@ -811,6 +954,7 @@
       for (const btn of document.querySelectorAll(
         '[data-testid="webview-download-show-in-folder"],[data-testid="webview-download-cancel"],' +
         '[data-testid="webview-download-remove"],[data-testid="webview-downloads-close"],' +
+        '[data-testid="webview-url-bar-downloads"],' +
         '[data-testid="conversation-telemetry-icon-button"],[data-testid="conversation-telemetry-indicator"]'
       )) {
         translateAttrs(btn);
@@ -867,6 +1011,8 @@
       }
       for (const el of document.querySelectorAll(
         '[data-testid="selection-quote-button"],[data-testid="selection-btw-button"],' +
+        '[data-testid="selection-comment-button"],[data-testid="selection-popup-quote-button"],' +
+        '[data-testid="side-panel-pending-terminal-tab"],[data-testid="agent-browser-cross-window-banner"],' +
         '[data-testid="side-question-waiting-status"],[data-testid="side-question-followup-thinking"],' +
         '[data-testid="file-tree-filter-empty"],[data-testid="csv-file-viewer"],' +
         '[data-testid="builtin-browser-caa-open-external"],[data-testid="onboarding-auth-code-panel"],' +
@@ -885,12 +1031,101 @@
         '[data-testid="side-question-reply-send"],[data-testid="side-question-popout"],' +
         '[data-testid="side-question-tab-stop"],[data-testid="side-question-tab-promote"],' +
         '[data-testid="side-question-tab-delete"],[data-testid="side-question-resize-handle"],' +
+        '[data-testid="selection-code-search-button"],[data-testid="side-panel-new-tab-button"],' +
+        '[data-testid="comment-card-delete"],[data-testid="comment-card-edit"],' +
         '[data-testid="coordinator-worker-card"] + button,[data-testid="file-tree-filter-clear"],' +
         '[data-testid="file-tree-vcs-dot"],[data-testid="csv-filter-clear"],' +
         '[data-testid="lsp-peek-references-close"],[data-testid="url-security-indicator"]'
       )) {
         translateTree(el);
         translateAttrs(el);
+      }
+      // 2.32.1 verified SSH remote, Create Project wizard, macOS permissions card, provider resource picker, setup script, multi-agent pane & URL draft capsule.
+      for (const marker of document.querySelectorAll(
+        '[data-testid="ssh-connect-dialog"],[data-testid="provider-resource-filter"],' +
+        '[data-testid="google-drive-connect-view"],[data-testid="project-folder-selection-step"],' +
+        '[data-testid="cloud-resource-disclosure-modal"]'
+      )) {
+        const dialog = marker.closest('.z-\\[6000\\],[role="dialog"]') || marker;
+        translateTree(dialog);
+        for (const el of dialog.querySelectorAll('[aria-label],[title]')) translateAttrs(el);
+      }
+      for (const btn of document.querySelectorAll('[data-testid="project-folder-selection-step"] button')) {
+        if (originalText(btn) !== 'project') continue;
+        const prev = btn.previousElementSibling, next = btn.nextElementSibling;
+        const pNode = prev?.firstChild, bNode = btn.firstChild, nNode = next?.firstChild;
+        if ([prev, btn, next].some(el => el?.childNodes.length !== 1) ||
+          [pNode, bNode, nNode].some(n => n?.nodeType !== 3)) continue;
+        const zhPrefix = {
+          'A|exists': '已存在相同的',
+          'A similar|exists': '已存在相似的',
+          'A|with the same folder exists': '已存在使用相同文件夹的',
+          'A|with the same folders exists': '已存在使用相同文件夹组合的'
+        }[`${originalText(prev)}|${originalText(next)}`];
+        if (!zhPrefix) continue;
+        setRecordedText(pNode, zhPrefix);
+        setRecordedText(bNode, '项目');
+        setRecordedText(nNode, '');
+      }
+      for (const dialog of document.querySelectorAll('[role="dialog"]')) {
+        const h2 = dialog.querySelector('h2');
+        const title = h2 ? originalText(h2) : '';
+        if (title === 'Set Project Name') {
+          const inp = dialog.querySelector('form input[type="text"]');
+          const rawPh = inp ? (placeholderRecords.get(inp)?.original ?? inp.getAttribute('placeholder')) : '';
+          if (rawPh && normalize(rawPh) === 'Enter project name...') {
+            translateTree(dialog);
+            for (const el of dialog.querySelectorAll('[aria-label],[title]')) translateAttrs(el);
+          }
+        } else if (title === 'Project already exists') {
+          const btnTexts = new Set([...dialog.querySelectorAll('button')].map(originalText));
+          if (['Back', 'Create New', 'Use Existing'].every(t => btnTexts.has(t))) {
+            translateTree(h2);
+            for (const el of dialog.querySelectorAll('button')) {
+              translateTree(el);
+              translateAttrs(el);
+            }
+            const body = [...dialog.querySelectorAll('div')].find(d =>
+              d.children.length === 1 && d.firstElementChild?.matches('span.font-semibold'));
+            const nodes = body ? [...body.childNodes] : [];
+            if (nodes.length === 5 && nodes[0].nodeType === 3 && nodes[1].nodeType === 1 &&
+              nodes[2].nodeType === 3 && nodes[3].nodeType === 3 && nodes[4].nodeType === 3 &&
+              english(nodes[0]) === 'Project ' && english(nodes[2]) === ' already exists for this ' &&
+              english(nodes[4]) === '. Would you like to continue using it or make a new one?') {
+              const scope = english(nodes[3]);
+              if (scope === 'folder' || scope === 'combination of folders') {
+                setRecordedText(nodes[0], '项目 ');
+                setRecordedText(nodes[2], scope === 'folder'
+                  ? ' 已关联此文件夹。要继续使用该项目，还是创建一个新项目？'
+                  : ' 已关联此文件夹组合。要继续使用该项目，还是创建一个新项目？');
+                setRecordedText(nodes[3], '');
+                setRecordedText(nodes[4], '');
+              }
+            }
+          }
+        }
+      }
+      for (const rootEl of document.querySelectorAll(
+        '[data-testid="computer-permissions-card"],[data-agy-agents-pane],' +
+        '[data-testid="webview-url-bar-draft-capsule"],[data-testid="comment-box"]'
+      )) {
+        translateTree(rootEl);
+        for (const el of rootEl.querySelectorAll('[aria-label],[title]')) translateAttrs(el);
+      }
+      for (const el of document.querySelectorAll(
+        '[data-testid="ssh-machine-switcher"],[data-testid="permissions-selector-trigger"],' +
+        '[data-testid="model-selector-refresh"],[data-testid="setup-script-save-button"],' +
+        '[data-testid="setup-script-validate-button"],[data-testid="setup-script-status"],' +
+        '[data-testid="setup-script-copy-button"]'
+      )) {
+        translateTree(el);
+        translateAttrs(el);
+      }
+      for (const el of document.querySelectorAll(
+        '[data-testid="ssh-host-label"],[data-testid="file-tree-filter-error"],' +
+        '[data-testid="onboarding-switch-to-auth-code"]'
+      )) {
+        translateTree(el);
       }
     } finally {
       observe();

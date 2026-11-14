@@ -91,7 +91,7 @@ class InstallerTests(unittest.TestCase):
         def loads(data, *args, **kwargs):
             value = self.real_json_loads(data, *args, **kwargs)
             if isinstance(value, dict) and value.get('target') == 'Antigravity Desktop (not Antigravity IDE)':
-                for ver in ('2.22.0', '2.23.0', '2.29.1', '2.31.2'):
+                for ver in ('2.22.0', '2.23.0', '2.29.1', '2.31.2', '2.32.1'):
                     if ver in value['versions']:
                         value['versions'][ver]['preload_sha256'] = p.digest(preload)
                         if 'text_patches' in value['versions'][ver]:
@@ -121,12 +121,12 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(info['archive'].read('asset'), b'unchanged')
 
     def test_version_and_symlink_rejected(self):
-        # Verify 2.23.0, 2.29.1, and 2.31.2 (including multi-file text_patches) are accepted and patched cleanly
+        # Verify 2.23.0, 2.29.1, 2.31.2, and 2.32.1 (including multi-file text_patches) are accepted and patched cleanly
         preload = b"/* test preload */\nshowContextMenu: (items) => electron_1.ipcRenderer.invoke('window:show-context-menu', items),\n"
-        for supported_ver in ('2.23.0', '2.29.1', '2.31.2'):
+        for supported_ver in ('2.23.0', '2.29.1', '2.31.2', '2.32.1'):
             entries = {'package.json': json.dumps({'name':'antigravity','version':supported_ver}).encode(),
                        'dist/preload.js': preload, 'asset': b'unchanged'}
-            if supported_ver in ('2.29.1', '2.31.2'):
+            if supported_ver in ('2.29.1', '2.31.2', '2.32.1'):
                 entries['dist/main.js'] = self.fake_main
                 entries['dist/tray.js'] = self.fake_tray
             data_ver = make_archive(entries)
@@ -136,7 +136,7 @@ class InstallerTests(unittest.TestCase):
             plist_ver['ElectronAsarIntegrity']['Resources/app.asar']['hash'] = p.digest(p.Archive(data_ver).raw_header)
             self.plist.write_bytes(plistlib.dumps(plist_ver))
             self.assertEqual(p.inspect(self.app)['version'], supported_ver)
-            if supported_ver in ('2.29.1', '2.31.2'):
+            if supported_ver in ('2.29.1', '2.31.2', '2.32.1'):
                 p.patch_bundle(self.app)
                 patched_info = p.inspect(self.app)
                 self.assertTrue(patched_info['patched'])

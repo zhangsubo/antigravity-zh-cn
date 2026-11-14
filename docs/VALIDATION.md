@@ -1,5 +1,13 @@
 # 验证记录
 
+## 2026-11-14：2.32.1 版本适配与 Apple Silicon Mac 实机验证
+
+- 完成 Antigravity Desktop 2.32.1 适配，词库扩充至 1,848 条，更新 `tools/compatibility.json` 中 `2.32.1` 的 `dist/preload.js`（`43592a8470cb6c0aa92e5c9879d6093d9e7f50be7d4106c3d4e97bf3c780aaba`）、`dist/main.js`（`b1d133d4aacd31170a23e277008f45b5d4bdc150ae44059a9d27059c8780cd62`）、`dist/tray.js`（`6c6b0968b45a1c7088e459657d57a9efd72d3733614349095f17b6ee94b47135`）SHA-256 指纹与精确补丁规则。
+- 适配 2.32.1 新增界面与控件：创建项目向导弹窗全流程（`project-folder-selection-step` 本地/云端远程切换、文件夹与外部资源选择、云端资源说明弹窗 `cloud-resource-disclosure-modal`、设置项目名称与重复项目确认）、分支与工作树选择器（`Work in a New Worktree` / 历史工作树 / 分支搜索与 `· 新工作树` 后缀）、模型选择器胶囊（`新` / `快速` / `提示`）与用量配额子菜单（`本周额度` / `今日额度` / `5 小时额度` / `剩余 %`）、SSH 远程连接弹窗（`ssh-connect-dialog`）、SSH 机器切换器（`ssh-machine-switcher`）与主机标签（`ssh-host-label`）、macOS 辅助功能与屏幕录制权限引导卡（`computer-permissions-card`）、对话级权限预设选择器与沙盒提示（`permissions-selector-trigger` / `permissions-menu` / `permissions-sandbox-hint`）、外部资源选择器（`provider-resource-filter` / `google-drive-connect-view`）、环境初始化脚本控件（`setup-script-*`）、侧边栏扩展分组与显示筛选（`plugins-section-header` / `plugins-visibility-trigger`）、多智能体实时画面面板（`[data-agy-agents-pane]`）、内置浏览器地址栏评论草稿胶囊（`webview-url-bar-draft-capsule`）与评论草稿编辑框/卡片（`comment-box` / `comment-card` / 下载进度提示）、侧边面板新建/固定标签页控件、文件树搜索失败提示、模型列表刷新状态及初始引导授权码入口。
+- 边界保护加固：严格保护已选本地文件夹与上传文件名称、重复项目提示中的现有项目名、分支选择器中的仓库名与分支名、内置浏览器评论正文、SSH 主机名与自定义配置文件名、WSL 发行版名称、GitHub 仓库条目、侧边栏扩展项名称，以及多智能体实时面板中的窗口标题、智能体名称与光标标签。
+- `npm test`：25 项 JavaScript DOM 测试、12 项 Python 测试全部通过；`npm run build` 构建产物与源码一致。
+- 已在 Apple Silicon Mac 本机 `/Applications/Antigravity.app`（`2.32.1`，官方包 `2.32.1-6001966350991360`，DMG SHA-256 `eb12a620a92b44c8fd7bd4844eeedcc5b145e79fb6dda5b636e4911168e34dec`）完成升级替换、`doctor`、全新 `install`、2.31.2 旧备份 `--replace-stale-backup` 升级路径、`codesign --verify --deep --strict`、Electron 44.9.1 实机进程启动与跨 `contextIsolation` 隔离世界中英文实时切换/边界保护/重启恢复校验，以及完整 `restore` 后的 `spctl --assess --type execute` 原版公证校验（`accepted / Notarized Developer ID`），`2.32.1` 的 `native_ui_tested` 设为 `true`。
+
 ## 2026-11-12：2.31.2 版本适配与升级备份替换验证
 
 - 完成 Antigravity Desktop 2.31.2 适配，词库扩充至 1,672 条，更新 `tools/compatibility.json` 中 `2.31.2` 的 `dist/preload.js`、`dist/main.js`、`dist/tray.js` SHA-256 指纹与精确补丁规则。

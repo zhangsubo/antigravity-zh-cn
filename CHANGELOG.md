@@ -1,5 +1,14 @@
 # 更新日志
 
+## [2.32.1.1] - 2026-11-14
+
+### 新增与改进
+
+- 新增 **Antigravity Desktop 2.32.1** 版本适配与 `dist/preload.js`、`dist/main.js`、`dist/tray.js` SHA-256 指纹校验，并在 Apple Silicon Mac 上完成安装、签名、`--replace-stale-backup` 升级、Electron 44.9.1 实机运行、中英文实时切换、重启及完整还原验证。
+- 词库由 1,672 条扩充至 **1,848 条**简体中文词条。
+- 适配 2.32.1 新版界面：创建项目向导弹窗全流程（`project-folder-selection-step` 本地/云端远程切换、文件夹/资源添加、云端资源挂载说明弹窗 `cloud-resource-disclosure-modal`、设置项目名称与同名/同目录重复项目提示）、分支与工作树选择器（`Work in a New Worktree` / 历史工作树 / 分支搜索与 `· 新工作树` 后缀）、模型选择器胶囊（`新` / `快速` / `提示`）与用量配额子菜单（`本周额度` / `今日额度` / `5 小时额度` / `剩余 %`）、SSH 远程连接弹窗（`ssh-connect-dialog`）、SSH 机器切换器（`ssh-machine-switcher`）与主机状态标签（`ssh-host-label`）、macOS 辅助功能与屏幕录制权限引导卡（`computer-permissions-card`）、对话级权限预设选择器与终端沙盒动态提示（`permissions-selector-trigger` / `permissions-menu` / `permissions-sandbox-hint`）、外部资源选择器（`provider-resource-filter` / `google-drive-connect-view`）、环境初始化脚本验证控件（`setup-script-*`）、侧边栏扩展分组与显示筛选（`plugins-section-header` / `plugins-visibility-trigger`）、多智能体实时画面面板（`[data-agy-agents-pane]`）、内置浏览器地址栏评论草稿胶囊（`webview-url-bar-draft-capsule`）与评论草稿编辑框/卡片（`comment-box` / `comment-card` / 下载进度提示）、侧边面板新建/固定标签页控件、文件树搜索失败提示、模型列表刷新状态及初始引导授权码切换入口。
+- 边界保护加固：严格保护创建项目与项目设置中已选本地文件夹/上传文件名称、重复项目提示中的现有项目名、分支选择器中的仓库名与分支名（`branch-repo-label`、`branch-option`、`branch-pill-label`、`branch-pill-trigger`）、内置浏览器评论正文（`comment-card-text`）、SSH 主机名与自定义配置文件名（`ssh-host-project-item`、`ssh-connect-host-option` 首列、`ssh-connect-error` 主机名、`ssh-config-file-name` 自定义文件名）、WSL 发行版名称（`ssh-machine-switcher-wsl-distro`）、GitHub 仓库条目（`project-selector-github-repo-item`、`github-repo-option-*`）、侧边栏扩展项名称（`plugin-sidebar-item`、`plugin-sidebar-mcp-app-item`、`plugins-visibility-option`），以及多智能体实时面板中的窗口标题、智能体名称与光标标签（`[data-agy-chip]`、`[data-agy-pill]`、`[data-agy-window-label]` 等）。
+
 ## [2.31.2.1] - 2026-11-12
 
 ### 新增与改进
@@ -43,6 +52,7 @@
 - 收录 6 张已遮挡账号的实机截图与 3 张中英文对比图。
 - 完成 19 项自动化测试，以及 Apple Silicon Mac 上的安装、切换、重启和完整还原验证。
 
+[2.32.1.1]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v2.32.1.1
 [2.31.2.1]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v2.31.2.1
 [0.2.0]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v0.2.0
 [0.1.1]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v0.1.1
