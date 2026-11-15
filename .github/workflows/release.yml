@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v2.32.1.1). Leave empty to use package.json version.'
+        description: 'Release tag (e.g. v2.32.1.2). Leave empty to use package.json version.'
         required: false
         type: string
 permissions:
@@ -66,7 +66,7 @@ jobs:
           | --- | --- |
           | 应用版本 | Antigravity Desktop **{versions}** |
           | 词库规模 | **{entries}** 条简体中文词条 |
-          | 操作系统 | macOS（Apple Silicon 已实测） |
+          | 操作系统 | macOS（Apple Silicon 已实测）、Linux（x86_64 已实测，支持 2.32.1） |
           | 安装环境 | Python **3.9+** |
 
           ## 下载与安装

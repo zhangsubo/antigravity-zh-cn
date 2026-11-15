@@ -1,5 +1,17 @@
 # 更新日志
 
+## [2.32.1.2] - 2026-11-15
+
+### 新增与改进
+
+- 新增 **Linux 版 Antigravity Desktop 2.32.1** 安装、诊断与完整还原支持：
+  - `tools/patcher.py` 支持 Linux 应用目录自动探测（`/opt/Antigravity`、`/usr/share/antigravity`、`~/.local/share/antigravity`、`~/Antigravity-x64` 及 `PATH` 可执行文件定位）与 `--app` 自定义路径；
+  - 支持 Linux 完整目录原子备份（`<app>.zh-cn-original`）与状态记录（`<app>.zh-cn-state.json`，含 `original_asar`、`patched_asar` 与 `original_executable` SHA-256 校验）、`--replace-stale-backup` 升级备份替换、中断恢复、运行中进程（`antigravity` / `resources/`）拦截、防符号链接越界校验与权限不足清晰报错，同时完整保留 macOS 签名与公证校验链路。
+- 适配 Linux 专属及跨平台文件管理界面文案，词库由 1,848 条扩充至 **1,873 条**简体中文词条：
+  - 新增 Linux 顶部自定义菜单栏（`[data-testid="title-menu-bar"]`：`Workspace` / `View` / `Window`、`Version X.Y.Z` 动态版本号、`Check for Updates`、`Command Palette`、`Minimize`、`Maximize`、`Close`）与首次启动登录引导页（`[data-testid="onboarding-brand-shell"]`：`欢迎使用 Antigravity！`、`通过 Google 继续`、`使用企业账号`、`登录遇到问题？` 等）翻译，并严格保护首个应用标题项（`Antigravity` 及 SSH 主机 / WSL 发行版后缀）；
+  - 新增项目与文件操作菜单中的跨平台文件管理器定位文案（`Show in File Manager` / `Reveal in Finder` / `Show in File Explorer` 及失败提示）。
+- 新增 Linux 安装器与运行时单元测试（26 项 JS DOM 测试 + 16 项 Python 测试），并在 OVH Linux x86_64 与 Instabox `box-856891`（Debian 13 x86_64 + XFCE 桌面环境 `DISPLAY=:1`）上对官方 `Antigravity 2.32.1`（`2.32.1-6001966350991360`）完成 `doctor（默认路径 /opt/Antigravity 自动探测） -> 非特权权限拦截 -> install -> XFCE 真机桌面启动与中英文切换截图/CDP 验证 -> restore` 全闭环验证。
+
 ## [2.32.1.1] - 2026-11-14
 
 ### 新增与改进
@@ -52,6 +64,7 @@
 - 收录 6 张已遮挡账号的实机截图与 3 张中英文对比图。
 - 完成 19 项自动化测试，以及 Apple Silicon Mac 上的安装、切换、重启和完整还原验证。
 
+[2.32.1.2]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v2.32.1.2
 [2.32.1.1]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v2.32.1.1
 [2.31.2.1]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v2.31.2.1
 [0.2.0]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v0.2.0

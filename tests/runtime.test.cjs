@@ -965,7 +965,7 @@ test('2.32.1 SSH remote, macOS permissions card, resource picker, setup script, 
  openStrong.textContent='Open ↗';
  cpHint.append(d.createTextNode('Click '),openStrong,d.createTextNode(' to open macOS Privacy & Security.'));
  w.__teacherxu_antigravity_zh__.refresh();
- assert.equal(w.__teacherxu_antigravity_zh__.version,'2.32.1.1');
+ assert.equal(w.__teacherxu_antigravity_zh__.version,'2.32.1.2');
  assert.equal(d.querySelector('[data-testid="plugins-section-header"] h2').textContent,'扩展');
  assert.equal(d.querySelector('[data-testid="plugins-visibility-trigger"]').getAttribute('aria-label'),'显示或隐藏扩展');
  assert.equal(d.querySelector('#ext-item').textContent,'Settings');
@@ -1328,5 +1328,72 @@ test('2.32.1 branch/worktree selector, model usage limits & pills, browser comme
  assert.equal(d.querySelector('[data-testid="webview-url-bar-downloads"]').getAttribute('aria-label'),'Downloads, 65% complete');
  assert.equal(d.querySelector('#cb-ph').textContent,'Leave a comment');
  assert.equal(d.querySelector('[data-testid="side-panel-new-tab-button"]').getAttribute('aria-label'),'New tab');
+ dom.window.close();
+});
+
+test('2.32.1 Linux title menu bar and file manager reveal actions translate cleanly while protecting app/SSH titles',async()=>{
+ const dom=create(`
+ <div data-testid="title-menu-bar">
+  <button data-testid="title-menu-bar-item" id="tm-app" aria-label="Settings">Settings</button>
+  <button data-testid="title-menu-bar-item" id="tm-ws" aria-label="Workspace">Workspace</button>
+  <button data-testid="title-menu-bar-item" id="tm-view" aria-label="View">View</button>
+  <button data-testid="title-menu-bar-item" id="tm-win" aria-label="Window">Window</button>
+  <div data-browser-occluder="true">
+   <button data-testid="title-menu-bar-option"><span id="tmo-ver">Version 44.9.1</span></button>
+   <button data-testid="title-menu-bar-option"><span id="tmo-upd">Check for Updates</span></button>
+   <button data-testid="title-menu-bar-option"><span id="tmo-cmd">Command Palette</span><span id="tmo-sc">Ctrl+Shift+P</span></button>
+   <button data-testid="title-menu-bar-option"><span id="tmo-min">Minimize</span></button>
+   <button data-testid="title-menu-bar-option"><span id="tmo-max">Maximize</span></button>
+   <button data-testid="title-menu-bar-option"><span id="tmo-close">Close</span></button>
+  </div>
+ </div>
+ <div role="menu">
+  <div role="menuitem" id="rev-linux">Show in File Manager</div>
+  <div role="menuitem" id="rev-mac">Reveal in Finder</div>
+  <div role="menuitem" id="rev-win">Show in File Explorer</div>
+ </div>
+ <div data-testid="onboarding-brand-shell">
+  <div id="ob-welcome">Welcome to Antigravity!</div>
+  <button id="ob-google" title="Continue with Google">Continue with Google</button>
+  <button id="ob-biz">Use Business Account</button>
+  <button id="ob-trouble">Having trouble signing in?</button>
+ </div>`);
+ const w=dom.window,d=w.document;
+ w.__teacherxu_antigravity_zh__.refresh();
+
+ assert.equal(d.querySelector('#tm-app').textContent,'Settings');
+ assert.equal(d.querySelector('#tm-app').getAttribute('aria-label'),'Settings');
+ assert.equal(d.querySelector('#tm-ws').textContent,'工作区');
+ assert.equal(d.querySelector('#tm-ws').getAttribute('aria-label'),'工作区');
+ assert.equal(d.querySelector('#tm-view').textContent,'视图');
+ assert.equal(d.querySelector('#tm-view').getAttribute('aria-label'),'视图');
+ assert.equal(d.querySelector('#tm-win').textContent,'窗口');
+ assert.equal(d.querySelector('#tm-win').getAttribute('aria-label'),'窗口');
+ assert.equal(d.querySelector('#tmo-ver').textContent,'版本 44.9.1');
+ assert.equal(d.querySelector('#tmo-upd').textContent,'检查更新');
+ assert.equal(d.querySelector('#tmo-cmd').textContent,'命令面板');
+ assert.equal(d.querySelector('#tmo-sc').textContent,'Ctrl+Shift+P');
+ assert.equal(d.querySelector('#tmo-min').textContent,'最小化');
+ assert.equal(d.querySelector('#tmo-max').textContent,'最大化');
+ assert.equal(d.querySelector('#tmo-close').textContent,'关闭');
+ assert.equal(d.querySelector('#rev-linux').textContent,'在文件管理器中显示');
+ assert.equal(d.querySelector('#rev-mac').textContent,'在访达中显示');
+ assert.equal(d.querySelector('#rev-win').textContent,'在文件资源管理器中显示');
+ assert.equal(d.querySelector('#ob-welcome').textContent,'欢迎使用 Antigravity！');
+ assert.equal(d.querySelector('#ob-google').textContent,'通过 Google 继续');
+ assert.equal(d.querySelector('#ob-google').getAttribute('title'),'通过 Google 继续');
+ assert.equal(d.querySelector('#ob-biz').textContent,'使用企业账号');
+ assert.equal(d.querySelector('#ob-trouble').textContent,'登录遇到问题？');
+
+ w.__teacherxu_antigravity_zh__.setEnabled(false);
+ assert.equal(d.querySelector('#tm-ws').textContent,'Workspace');
+ assert.equal(d.querySelector('#tm-view').textContent,'View');
+ assert.equal(d.querySelector('#tm-win').textContent,'Window');
+ assert.equal(d.querySelector('#tmo-ver').textContent,'Version 44.9.1');
+ assert.equal(d.querySelector('#tmo-upd').textContent,'Check for Updates');
+ assert.equal(d.querySelector('#tmo-cmd').textContent,'Command Palette');
+ assert.equal(d.querySelector('#rev-linux').textContent,'Show in File Manager');
+ assert.equal(d.querySelector('#ob-welcome').textContent,'Welcome to Antigravity!');
+ assert.equal(d.querySelector('#ob-google').textContent,'Continue with Google');
  dom.window.close();
 });

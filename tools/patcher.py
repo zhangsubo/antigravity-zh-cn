@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Antigravity macOS localization installer. Python 3.9+, standard library only."""
+"""Antigravity macOS & Linux localization installer. Python 3.9+, standard library only."""
 import argparse
 import copy
 import hashlib
@@ -16,6 +16,16 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = b'/* TeacherXuAI Antigravity Chinese UI'
 MAX_HEADER = 32 * 1024 * 1024
+LINUX_DEFAULT_PATHS = (
+    Path('/opt/Antigravity'),
+    Path('/opt/antigravity'),
+    Path('/usr/share/antigravity'),
+    Path('/usr/lib/antigravity'),
+    Path.home() / '.local/share/antigravity',
+    Path.home() / 'Antigravity-x64',
+    Path.home() / 'Antigravity-arm64',
+    Path.home() / 'Antigravity',
+)
 
 
 def digest(data):
@@ -93,16 +103,82 @@ def build():
     return payload.encode('utf-8')
 
 
+def default_app_path():
+    if not sys.platform.startswith('linux'):
+        return Path('/Applications/Antigravity.app')
+    for candidate in LINUX_DEFAULT_PATHS:
+        if (candidate / 'resources/app.asar').is_file() and (candidate / 'antigravity').is_file():
+            return candidate
+    which_bin = shutil.which('antigravity')
+    if which_bin:
+        bin_path = Path(os.path.abspath(which_bin))
+        if not bin_path.is_symlink() and (bin_path.parent / 'resources/app.asar').is_file():
+            return bin_path.parent
+    return LINUX_DEFAULT_PATHS[0]
+
+
+def app_platform(app):
+    app = Path(os.path.abspath(app))
+    backup = app.with_name(app.name + '.zh-cn-original')
+    if app.suffix == '.app' or (app / 'Contents').exists() or (backup / 'Contents').exists():
+        return 'darwin'
+    if ((app / 'resources/app.asar').exists() or (app / 'antigravity').exists() or
+            (backup / 'resources/app.asar').exists() or (backup / 'antigravity').exists()):
+        return 'linux'
+    return 'linux' if sys.platform.startswith('linux') else 'darwin'
+
+
+def asar_path(app, platform=None):
+    platform = platform or app_platform(app)
+    return app / ('Contents/Resources/app.asar' if platform == 'darwin' else 'resources/app.asar')
+
+
+def assert_no_escaping_symlinks(root):
+    root = Path(os.path.abspath(root))
+    for current_root, dirnames, filenames in os.walk(root, followlinks=False):
+        base = Path(current_root)
+        for name in dirnames + filenames:
+            entry = base / name
+            if entry.is_symlink():
+                resolved = entry.resolve()
+                try:
+                    resolved.relative_to(root)
+                except ValueError as exc:
+                    raise ValueError('Application directory contains a symlink escaping the app root: ' + str(entry)) from exc
+
+
+def ensure_writable(*targets):
+    for target in targets:
+        target = Path(target)
+        check = target if target.exists() else target.parent
+        mode = (os.W_OK | os.X_OK) if check.is_dir() else os.W_OK
+        if not check.exists() or not os.access(check, mode):
+            raise ValueError(
+                f'Insufficient permissions to modify {target}; '
+                'run with appropriate permissions (e.g. sudo) or use a user-writable installation path'
+            )
+
+
 def assert_app_path(app):
     app = Path(os.path.abspath(app))
-    if app.suffix != '.app' or not app.is_dir():
-        raise ValueError('Select an existing .app bundle')
     if app.resolve() != app or app.is_symlink():
         raise ValueError('Symlink application paths are not supported')
-    for relative in ('Contents/Info.plist', 'Contents/Resources/app.asar'):
-        p = app / relative
-        if not p.is_file() or p.resolve() != p:
-            raise ValueError('Expected regular bundle files: ' + relative)
+    platform = app_platform(app)
+    if platform == 'darwin':
+        if app.suffix != '.app' or not app.is_dir():
+            raise ValueError('Select an existing .app bundle')
+        for relative in ('Contents/Info.plist', 'Contents/Resources/app.asar'):
+            p = app / relative
+            if not p.is_file() or p.is_symlink() or p.resolve() != p:
+                raise ValueError('Expected regular bundle files: ' + relative)
+    else:
+        if not app.is_dir():
+            raise ValueError('Select an existing Antigravity application directory')
+        for relative in ('antigravity', 'resources/app.asar'):
+            p = app / relative
+            if not p.is_file() or p.is_symlink() or p.resolve() != p:
+                raise ValueError('Expected regular application files: ' + relative)
+        assert_no_escaping_symlinks(app)
     return app
 
 
@@ -114,42 +190,64 @@ def stale_backup_version(app, version, backup, state):
     if (backup.is_symlink() or state.is_symlink() or not backup.is_dir() or
             not state.is_file() or backup.resolve() != backup):
         return None
-    for relative in ('Contents/Info.plist', 'Contents/Resources/app.asar'):
+    platform = app_platform(app)
+    required = ('Contents/Info.plist', 'Contents/Resources/app.asar') if platform == 'darwin' else ('antigravity', 'resources/app.asar')
+    for relative in required:
         f = backup / relative
-        if not f.is_file() or f.resolve() != f:
+        if not f.is_file() or f.is_symlink() or f.resolve() != f:
             return None
     try:
-        metadata = json.loads(state.read_text())
+        metadata = json.loads(state.read_text(encoding='utf-8'))
     except (ValueError, OSError):
         return None
     old_version = metadata.get('version') if isinstance(metadata, dict) else None
     if (metadata.get('schema') != 1 or metadata.get('app') != str(app) or
             not isinstance(old_version, str) or old_version == version):
         return None
-    if (digest((backup / 'Contents/Resources/app.asar').read_bytes()) != metadata.get('original_asar') or
-            digest((backup / 'Contents/Info.plist').read_bytes()) != metadata.get('original_plist')):
-        return None
+    if platform == 'darwin':
+        if (digest((backup / 'Contents/Resources/app.asar').read_bytes()) != metadata.get('original_asar') or
+                digest((backup / 'Contents/Info.plist').read_bytes()) != metadata.get('original_plist')):
+            return None
+    else:
+        if (digest((backup / 'resources/app.asar').read_bytes()) != metadata.get('original_asar') or
+                digest((backup / 'antigravity').read_bytes()) != metadata.get('original_executable')):
+            return None
     return old_version
 
 
 def inspect(app):
     app = assert_app_path(app)
-    plist = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
-    compatibility = json.loads((ROOT / 'tools/compatibility.json').read_text())
-    if plist.get('CFBundleIdentifier') != compatibility['bundle_id']:
-        raise ValueError('This is not Antigravity Desktop')
-    version = plist.get('CFBundleShortVersionString')
-    rule = compatibility['versions'].get(version)
-    if not rule:
-        raise ValueError('Unsupported version: ' + str(version) + '; no files changed')
-    raw = (app / 'Contents/Resources/app.asar').read_bytes()
-    archive = Archive(raw)
-    package = json.loads(archive.read('package.json'))
-    if package.get('name') != 'antigravity' or package.get('version') != version:
-        raise ValueError('Bundle version differs from package version')
-    integrity = plist.get('ElectronAsarIntegrity', {}).get('Resources/app.asar')
-    if not integrity or integrity.get('algorithm') != 'SHA256' or integrity.get('hash') != digest(archive.raw_header):
-        raise ValueError('Bundle ASAR integrity does not match')
+    platform = app_platform(app)
+    compatibility = json.loads((ROOT / 'tools/compatibility.json').read_text(encoding='utf-8'))
+    if platform == 'darwin':
+        plist = plistlib.loads((app / 'Contents/Info.plist').read_bytes())
+        if plist.get('CFBundleIdentifier') != compatibility['bundle_id']:
+            raise ValueError('This is not Antigravity Desktop')
+        version = plist.get('CFBundleShortVersionString')
+        rule = compatibility['versions'].get(version)
+        if not rule:
+            raise ValueError('Unsupported version: ' + str(version) + '; no files changed')
+        raw = (app / 'Contents/Resources/app.asar').read_bytes()
+        archive = Archive(raw)
+        package = json.loads(archive.read('package.json'))
+        if package.get('name') != 'antigravity' or package.get('version') != version:
+            raise ValueError('Bundle version differs from package version')
+        integrity = plist.get('ElectronAsarIntegrity', {}).get('Resources/app.asar')
+        if not integrity or integrity.get('algorithm') != 'SHA256' or integrity.get('hash') != digest(archive.raw_header):
+            raise ValueError('Bundle ASAR integrity does not match')
+    else:
+        plist = None
+        raw = (app / 'resources/app.asar').read_bytes()
+        archive = Archive(raw)
+        package = json.loads(archive.read('package.json'))
+        if package.get('name') != 'antigravity' or package.get('productName', 'Antigravity') != 'Antigravity':
+            raise ValueError('This is not Antigravity Desktop')
+        version = package.get('version')
+        rule = compatibility['versions'].get(version)
+        if not rule:
+            raise ValueError('Unsupported version: ' + str(version) + '; no files changed')
+        if 'platforms' in rule and 'linux' not in rule['platforms']:
+            raise ValueError('Unsupported version on Linux: ' + str(version) + '; no files changed')
     preload = archive.read(rule['entry'])
     patched = MARKER in preload
     if not patched:
@@ -167,21 +265,27 @@ def inspect(app):
         for path in rule.get('text_patches', {}):
             archive.read(path)
     return {'version': version, 'archive': archive, 'rule': rule, 'plist': plist,
-            'asar_sha256': digest(raw), 'patched': patched, 'app': app}
+            'platform': platform, 'asar_sha256': digest(raw), 'patched': patched, 'app': app}
 
 
 def report(info):
     backup, state = paths(info['app'])
+    platform = info.get('platform', 'darwin')
     scope = 'Settings, navigation, Automations, approval & panel toolbars'
     if info['rule'].get('text_patches'):
         scope += '; native quit dialog & tray'
-    result = {'app': str(info['app']), 'version': info['version'],
+    signature_effect = (
+        'local ad-hoc outer signature and explicit app-scoped library-validation exception'
+        if platform == 'darwin'
+        else 'ASAR internal block integrity updated; no outer binary signature modification required on Linux'
+    )
+    result = {'app': str(info['app']), 'platform': platform, 'version': info['version'],
               'patched': info['patched'], 'asar_sha256': info['asar_sha256'],
-              'translations': len(json.loads((ROOT / 'locales/zh-CN.json').read_text())),
+              'translations': len(json.loads((ROOT / 'locales/zh-CN.json').read_text(encoding='utf-8'))),
               'backup': str(backup), 'state_present': state.exists(),
               'native_ui_tested': info['rule']['native_ui_tested'],
               'scope': scope,
-              'signature_effect': 'local ad-hoc outer signature and explicit app-scoped library-validation exception'}
+              'signature_effect': signature_effect}
     stale_ver = stale_backup_version(info['app'], info['version'], backup, state) if not info['patched'] else None
     if stale_ver:
         result['stale_backup_version'] = stale_ver
@@ -194,9 +298,17 @@ def run(*args):
 
 def ensure_stopped(app):
     output = run('/bin/ps', '-axo', 'command=').stdout
-    executable = str(app / 'Contents/MacOS') + '/'
-    if any(executable in line for line in output.splitlines()):
-        raise ValueError('Quit Antigravity completely with Cmd+Q, then retry')
+    if app_platform(app) == 'darwin':
+        executable = str(app / 'Contents/MacOS') + '/'
+        if any(executable in line for line in output.splitlines()):
+            raise ValueError('Quit Antigravity completely with Cmd+Q, then retry')
+    else:
+        targets = (str(app / 'antigravity'), str(app / 'resources/'))
+        for line in output.splitlines():
+            if 'patcher.py' in line:
+                continue
+            if any(t in line for t in targets):
+                raise ValueError('Quit Antigravity completely before patching or restoring, then retry')
 
 
 def verify_signature(app):
@@ -226,20 +338,28 @@ def patch_bundle(app):
     for path, payload in updates.items():
         if rebuilt.read(path) != payload:
             raise ValueError('Rebuilt archive verification failed')
-    plist = info['plist']
-    plist['ElectronAsarIntegrity']['Resources/app.asar']['hash'] = digest(rebuilt.raw_header)
-    (app / 'Contents/Resources/app.asar').write_bytes(archive_bytes)
-    (app / 'Contents/Info.plist').write_bytes(plistlib.dumps(plist))
+    if info.get('platform', 'darwin') == 'darwin':
+        plist = info['plist']
+        plist['ElectronAsarIntegrity']['Resources/app.asar']['hash'] = digest(rebuilt.raw_header)
+        (app / 'Contents/Resources/app.asar').write_bytes(archive_bytes)
+        (app / 'Contents/Info.plist').write_bytes(plistlib.dumps(plist))
+    else:
+        (app / 'resources/app.asar').write_bytes(archive_bytes)
     return digest(archive_bytes)
 
 
 def install(app, acknowledge=False, allow_local_libraries=False, replace_stale_backup=False):
-    if sys.platform != 'darwin':
-        raise ValueError('v0.1 supports macOS installation only')
-    if not acknowledge:
-        raise ValueError('Read README first. Installation requires --acknowledge-signature-change')
-    if not allow_local_libraries:
-        raise ValueError('Local signing requires an app-scoped library-validation exception; read README and use --allow-local-library-loading')
+    platform = app_platform(app)
+    if platform == 'darwin':
+        if sys.platform != 'darwin':
+            raise ValueError('v0.1 supports macOS installation only')
+        if not acknowledge:
+            raise ValueError('Read README first. Installation requires --acknowledge-signature-change')
+        if not allow_local_libraries:
+            raise ValueError('Local signing requires an app-scoped library-validation exception; read README and use --allow-local-library-loading')
+    else:
+        if not sys.platform.startswith('linux'):
+            raise ValueError('Linux installation requires running on Linux')
     info = inspect(app)
     app = info['app']
     if info['patched']:
@@ -253,14 +373,19 @@ def install(app, acknowledge=False, allow_local_libraries=False, replace_stale_b
         if not replace_stale_backup:
             raise ValueError('Backup/state already exists from ' + stale_version +
                              '; pass --replace-stale-backup after an app update')
+    ensure_writable(app.parent, app, asar_path(app, platform), *([backup, state] if stale_version else []))
     ensure_stopped(app)
-    if stale_version:
-        verify_signature(backup)
-    verify_signature(app)
-    run('/usr/sbin/spctl', '--assess', '--type', 'execute', str(app))
-    signature = run('/usr/bin/codesign', '-dv', '--verbose=2', str(app)).stderr
-    if 'Authority=Developer ID Application: Google LLC (EQHXZ8M8AV)' not in signature:
-        raise ValueError('Original application must have a Google LLC signature')
+    if platform == 'darwin':
+        if stale_version:
+            verify_signature(backup)
+        verify_signature(app)
+        run('/usr/sbin/spctl', '--assess', '--type', 'execute', str(app))
+        signature = run('/usr/bin/codesign', '-dv', '--verbose=2', str(app)).stderr
+        if 'Authority=Developer ID Application: Google LLC (EQHXZ8M8AV)' not in signature:
+            raise ValueError('Original application must have a Google LLC signature')
+    else:
+        if stale_version:
+            assert_no_escaping_symlinks(backup)
     staging = Path(tempfile.mkdtemp(prefix='.antigravity-zh-', dir=app.parent))
     staged = staging / app.name
     old_backup = staging / 'stale-backup.app'
@@ -271,32 +396,41 @@ def install(app, acknowledge=False, allow_local_libraries=False, replace_stale_b
     committed = False
     state_created = False
     try:
-        run('/usr/bin/ditto', str(app), str(staged))
-        patched_hash = patch_bundle(staged)
-        # Ad-hoc identities have no Apple Team ID. Explicit opt-in is required to
-        # load the original Google-signed frameworks in this locally signed process.
-        entitlements_raw = run('/usr/bin/codesign', '-d', '--entitlements', ':-', str(app)).stdout
-        entitlements = plistlib.loads(entitlements_raw.encode()) if entitlements_raw.strip() else {}
-        entitlements['com.apple.security.cs.disable-library-validation'] = True
-        entitlements_path = staging / 'local-entitlements.plist'
-        entitlements_path.write_bytes(plistlib.dumps(entitlements))
-        run('/usr/bin/codesign', '--force', '--sign', '-',
-            '--preserve-metadata=flags,runtime', '--entitlements', str(entitlements_path), str(staged))
-        verify_signature(staged)
+        if platform == 'darwin':
+            run('/usr/bin/ditto', str(app), str(staged))
+            patched_hash = patch_bundle(staged)
+            # Ad-hoc identities have no Apple Team ID. Explicit opt-in is required to
+            # load the original Google-signed frameworks in this locally signed process.
+            entitlements_raw = run('/usr/bin/codesign', '-d', '--entitlements', ':-', str(app)).stdout
+            entitlements = plistlib.loads(entitlements_raw.encode()) if entitlements_raw.strip() else {}
+            entitlements['com.apple.security.cs.disable-library-validation'] = True
+            entitlements_path = staging / 'local-entitlements.plist'
+            entitlements_path.write_bytes(plistlib.dumps(entitlements))
+            run('/usr/bin/codesign', '--force', '--sign', '-',
+                '--preserve-metadata=flags,runtime', '--entitlements', str(entitlements_path), str(staged))
+            verify_signature(staged)
+        else:
+            shutil.copytree(app, staged, symlinks=True)
+            patched_hash = patch_bundle(staged)
         ensure_stopped(app)
         # Detect an updater replacing the original while we prepared the copy.
         if inspect(app)['asar_sha256'] != info['asar_sha256']:
             raise ValueError('Original app changed during preparation; retry')
-        metadata = {'schema': 1, 'app': str(app), 'version': info['version'],
-                    'original_asar': info['asar_sha256'], 'patched_asar': patched_hash,
-                    'original_plist': digest((app / 'Contents/Info.plist').read_bytes())}
+        if platform == 'darwin':
+            metadata = {'schema': 1, 'app': str(app), 'version': info['version'],
+                        'original_asar': info['asar_sha256'], 'patched_asar': patched_hash,
+                        'original_plist': digest((app / 'Contents/Info.plist').read_bytes())}
+        else:
+            metadata = {'schema': 1, 'platform': 'linux', 'app': str(app), 'version': info['version'],
+                        'original_asar': info['asar_sha256'], 'patched_asar': patched_hash,
+                        'original_executable': digest((app / 'antigravity').read_bytes())}
         if stale_version:
             os.rename(backup, old_backup)
             moved_stale_backup = True
             os.rename(state, old_state)
             moved_stale_state = True
         # Reserve the manifest exclusively; never overwrite an existing recovery record.
-        with state.open('x') as f:
+        with state.open('x', encoding='utf-8') as f:
             state_created = True
             json.dump(metadata, f, indent=2)
             f.flush()
@@ -323,33 +457,61 @@ def install(app, acknowledge=False, allow_local_libraries=False, replace_stale_b
 
 
 def restore(app):
-    if sys.platform != 'darwin':
-        raise ValueError('v0.1 supports macOS restoration only')
     app = Path(os.path.abspath(app))
+    platform = app_platform(app)
+    if platform == 'darwin':
+        if sys.platform != 'darwin':
+            raise ValueError('v0.1 supports macOS restoration only')
+    else:
+        if not sys.platform.startswith('linux'):
+            raise ValueError('Linux restoration requires running on Linux')
     backup, state = paths(app)
     if state.is_symlink() or backup.is_symlink() or backup.resolve() != backup:
         raise ValueError('Invalid recovery path')
-    metadata = json.loads(state.read_text())
+    if not state.is_file():
+        raise ValueError('No recovery state file found for ' + str(app))
+    metadata = json.loads(state.read_text(encoding='utf-8'))
     if metadata.get('schema') != 1 or metadata.get('app') != str(app):
         raise ValueError('Recovery record does not match the application')
+    ensure_writable(app.parent, state, *([backup] if backup.exists() else []), *([app] if app.exists() else []))
     ensure_stopped(app)
     if not backup.exists() and app.exists():
         assert_app_path(app)
-        if (digest((app / 'Contents/Resources/app.asar').read_bytes()) == metadata['original_asar'] and
-                digest((app / 'Contents/Info.plist').read_bytes()) == metadata['original_plist']):
-            verify_signature(app)
-            state.unlink()
-            return {'restored': True, 'app': str(app), 'version': metadata['version'],
-                    'recovered': 'interrupted before original app was moved'}
-    if digest((backup / 'Contents/Resources/app.asar').read_bytes()) != metadata['original_asar']:
-        raise ValueError('Backup archive checksum mismatch')
-    if digest((backup / 'Contents/Info.plist').read_bytes()) != metadata['original_plist']:
-        raise ValueError('Backup Info.plist checksum mismatch')
-    verify_signature(backup)
+        if platform == 'darwin':
+            if (digest((app / 'Contents/Resources/app.asar').read_bytes()) == metadata['original_asar'] and
+                    digest((app / 'Contents/Info.plist').read_bytes()) == metadata['original_plist']):
+                verify_signature(app)
+                state.unlink()
+                return {'restored': True, 'app': str(app), 'version': metadata['version'],
+                        'recovered': 'interrupted before original app was moved'}
+        else:
+            if (digest((app / 'resources/app.asar').read_bytes()) == metadata['original_asar'] and
+                    digest((app / 'antigravity').read_bytes()) == metadata['original_executable']):
+                state.unlink()
+                return {'restored': True, 'app': str(app), 'version': metadata['version'],
+                        'recovered': 'interrupted before original app was moved'}
+    if platform == 'darwin':
+        if digest((backup / 'Contents/Resources/app.asar').read_bytes()) != metadata['original_asar']:
+            raise ValueError('Backup archive checksum mismatch')
+        if digest((backup / 'Contents/Info.plist').read_bytes()) != metadata['original_plist']:
+            raise ValueError('Backup Info.plist checksum mismatch')
+        verify_signature(backup)
+    else:
+        if not backup.is_dir():
+            raise ValueError('Backup directory is missing')
+        for relative in ('antigravity', 'resources/app.asar'):
+            bf = backup / relative
+            if not bf.is_file() or bf.is_symlink() or bf.resolve() != bf:
+                raise ValueError('Expected regular backup files: ' + relative)
+        assert_no_escaping_symlinks(backup)
+        if digest((backup / 'resources/app.asar').read_bytes()) != metadata['original_asar']:
+            raise ValueError('Backup archive checksum mismatch')
+        if digest((backup / 'antigravity').read_bytes()) != metadata['original_executable']:
+            raise ValueError('Backup executable checksum mismatch')
     # Missing app is recoverable after interruption between the two directory renames.
     if app.exists():
         assert_app_path(app)
-        if digest((app / 'Contents/Resources/app.asar').read_bytes()) != metadata['patched_asar']:
+        if digest(asar_path(app, platform).read_bytes()) != metadata['patched_asar']:
             raise ValueError('Installed app changed (possibly updated). Restore would overwrite it; stopped')
     staging = Path(tempfile.mkdtemp(prefix='.antigravity-zh-restore-', dir=app.parent))
     current = staging / app.name
@@ -373,11 +535,12 @@ def restore(app):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=('doctor', 'build', 'install', 'restore'))
-    parser.add_argument('--app', type=Path, default=Path('/Applications/Antigravity.app'))
+    parser.add_argument('--app', type=Path, default=None)
     parser.add_argument('--acknowledge-signature-change', action='store_true')
     parser.add_argument('--allow-local-library-loading', action='store_true')
     parser.add_argument('--replace-stale-backup', action='store_true')
     args = parser.parse_args()
+    app = args.app if args.app is not None else default_app_path()
     try:
         if args.command == 'build':
             target = ROOT / 'dist/antigravity-zh-cn.js'
@@ -385,13 +548,20 @@ def main():
             target.write_bytes(build())
             result = {'built': str(target), 'sha256': digest(target.read_bytes())}
         elif args.command == 'doctor':
-            result = report(inspect(args.app))
+            result = report(inspect(app))
         elif args.command == 'install':
-            result = install(args.app, args.acknowledge_signature_change,
+            result = install(app, args.acknowledge_signature_change,
                              args.allow_local_library_loading, args.replace_stale_backup)
         else:
-            result = restore(args.app)
+            result = restore(app)
         print(json.dumps(result, ensure_ascii=False, indent=2))
+    except PermissionError as exc:
+        print(
+            f'Stopped: Insufficient permissions ({exc}); '
+            'run with appropriate permissions (e.g. sudo) or use a user-writable installation path',
+            file=sys.stderr,
+        )
+        return 1
     except (ValueError, KeyError, OSError, subprocess.CalledProcessError) as exc:
         print('Stopped: ' + str(exc), file=sys.stderr)
         if isinstance(exc, subprocess.CalledProcessError) and exc.stderr:

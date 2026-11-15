@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const dictionary = /*__DICTIONARY__*/ {};
-  const VERSION = '2.32.1.1';
+  const VERSION = '2.32.1.2';
   const KEY = '__teacherxu_antigravity_zh__';
   if (window[KEY]) return;
   // The native application serves its UI locally. Never translate sign-in sites.
@@ -85,8 +85,9 @@
     '[data-testid="plugins-visibility-trigger"],[data-testid="webview-url-bar-draft-capsule"],[data-testid="webview-url-bar-downloads"],' +
     '[data-testid="side-panel-new-tab-button"],[data-testid="side-panel-pending-terminal-tab"],[data-testid="agent-browser-cross-window-banner"],' +
     '[data-testid="file-tree-filter-error"],[data-testid="model-selector-refresh"],' +
-    '[data-testid="onboarding-switch-to-auth-code"],[data-agy-agents-pane],' +
+    '[data-testid="onboarding-switch-to-auth-code"],[data-testid="onboarding-brand-shell"],[data-agy-agents-pane],' +
     '[data-testid="project-folder-selection-step"],[data-testid="cloud-resource-disclosure-modal"],' +
+    '[data-testid="title-menu-bar"],[data-testid="title-menu-bar-item"],[data-testid="title-menu-bar-option"],' +
     'input[placeholder="Search conversations..."]';
   const records = new Map();
   const placeholderRecords = new Map();
@@ -394,6 +395,10 @@
     if (match) {
       return `下载（已完成 ${match[1]}%）`;
     }
+    match = key.match(/^Version (\d[\w.+~-]*)$/);
+    if (match) {
+      return `版本 ${match[1]}`;
+    }
     return null;
   }
   const settingsNavIds = new Set(['General', 'App', 'Appearance', 'Browser', 'Project 4K',
@@ -418,6 +423,8 @@
     if (sshConfigName && originalText(sshConfigName) !== '~/.ssh/config (default)') return true;
     const branchPill = element.closest('[data-testid="branch-pill-label"]');
     if (branchPill && !['Select branch', 'Repo default'].includes(originalText(branchPill))) return true;
+    const titleMenuItem = element.closest('[data-testid="title-menu-bar-item"]');
+    if (titleMenuItem && !['Workspace', 'View', 'Window'].includes(originalText(titleMenuItem))) return true;
     // Settings' account and workspace/project nav buttons contain user data, not UI copy.
     const button = element.closest('button');
     if (!button) return false;
@@ -508,6 +515,7 @@
   const skippedControl = el => el.matches('input,textarea') ? el.parentElement?.closest(SKIP) : el.closest(SKIP);
   function translateAttrs(el) {
     if (!el || protectedContent(el) || skippedControl(el) ||
+      (el.matches('[data-testid="title-menu-bar-item"]') && !['Workspace', 'View', 'Window'].includes(originalText(el))) ||
       el.matches('[data-testid="ssh-config-file-name"],[data-testid="ssh-connect-host-option"],[data-testid="ssh-host-label"],[data-testid="branch-pill-trigger"]')) return;
     let entry = attrRecords.get(el);
     for (const attr of ['title', 'aria-label']) {
@@ -1107,7 +1115,8 @@
       }
       for (const rootEl of document.querySelectorAll(
         '[data-testid="computer-permissions-card"],[data-agy-agents-pane],' +
-        '[data-testid="webview-url-bar-draft-capsule"],[data-testid="comment-box"]'
+        '[data-testid="webview-url-bar-draft-capsule"],[data-testid="comment-box"],' +
+        '[data-testid="title-menu-bar"],[data-testid="onboarding-brand-shell"]'
       )) {
         translateTree(rootEl);
         for (const el of rootEl.querySelectorAll('[aria-label],[title]')) translateAttrs(el);

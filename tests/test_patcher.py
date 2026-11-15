@@ -251,4 +251,137 @@ class InstallerTests(unittest.TestCase):
                 self.assertFalse(state.exists())
 
 
+class LinuxInstallerTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve()
+        self.app = self.root / 'Antigravity-x64'
+        (self.app / 'resources').mkdir(parents=True)
+        self.exe = self.app / 'antigravity'
+        self.exe.write_bytes(b'\x7fELF-fake-antigravity-binary-2.32.1')
+        self.exe.chmod(0o755)
+        self.preload = b"/* test preload */\nshowContextMenu: (items) => electron_1.ipcRenderer.invoke('window:show-context-menu', items),\n"
+        self.fake_main = (
+            "label: 'New Window',\nlabel: 'No agents running',\n"
+            "label: `Open ${electron_1.app.getName()}`,\nlabel: 'Quit',\n"
+            "buttons: ['Cancel', 'Quit'],\ntitle: 'Confirm Quit',\n"
+            "message: 'Are you sure you want to quit?',\n"
+            "detail: 'There may be agents or background tasks running.',\n"
+        ).encode()
+        self.fake_tray = (
+            "(count > 0 ? `${count}` : 'No') +\n"
+            "                    ' agent' +\n"
+            "                    (count === 1 ? '' : 's') +\n"
+            "                    ' running'"
+        ).encode()
+        data = make_archive({
+            'package.json': json.dumps({'name': 'antigravity', 'productName': 'Antigravity', 'version': '2.32.1'}).encode(),
+            'dist/preload.js': self.preload,
+            'dist/main.js': self.fake_main,
+            'dist/tray.js': self.fake_tray,
+            'asset': b'linux-unchanged',
+        })
+        self.asar = self.app / 'resources/app.asar'
+        self.asar.write_bytes(data)
+        self.original = data
+        self.real_json_loads = json.loads
+
+        def loads(raw_data, *args, **kwargs):
+            value = self.real_json_loads(raw_data, *args, **kwargs)
+            if isinstance(value, dict) and value.get('target') == 'Antigravity Desktop (not Antigravity IDE)':
+                for ver in ('2.31.2', '2.32.1'):
+                    if ver in value['versions']:
+                        value['versions'][ver]['preload_sha256'] = p.digest(self.preload)
+                        tp = value['versions'][ver].get('text_patches', {})
+                        if tp:
+                            tp['dist/preload.js']['sha256'] = p.digest(self.preload)
+                            tp['dist/main.js']['sha256'] = p.digest(self.fake_main)
+                            tp['dist/tray.js']['sha256'] = p.digest(self.fake_tray)
+            return value
+
+        self.loads_patch = patch.object(p.json, 'loads', side_effect=loads)
+        self.loads_patch.start()
+
+    def tearDown(self):
+        self.loads_patch.stop()
+        self.tmp.cleanup()
+
+    def test_linux_default_app_detection_and_doctor_report(self):
+        with patch.object(p.sys, 'platform', 'linux'), patch.object(p, 'LINUX_DEFAULT_PATHS', (self.root / 'missing', self.app)):
+            self.assertEqual(p.default_app_path(), self.app)
+        info = p.inspect(self.app)
+        self.assertEqual(info['platform'], 'linux')
+        self.assertEqual(info['version'], '2.32.1')
+        self.assertFalse(info['patched'])
+        rep = p.report(info)
+        self.assertEqual(rep['platform'], 'linux')
+        self.assertIn('no outer binary signature modification required on Linux', rep['signature_effect'])
+
+    def test_linux_install_and_restore_full_original(self):
+        ps_ok = subprocess.CompletedProcess(['/bin/ps'], 0, 'python3 tools/patcher.py install\n', '')
+        with patch.object(p.sys, 'platform', 'linux'), patch.object(p, 'run', return_value=ps_ok):
+            res = p.install(self.app)
+            self.assertTrue(res['patched'])
+            self.assertEqual(res['platform'], 'linux')
+            backup, state = p.paths(self.app)
+            self.assertTrue(backup.is_dir())
+            self.assertTrue(state.is_file())
+            self.assertEqual((backup / 'resources/app.asar').read_bytes(), self.original)
+            patched_info = p.inspect(self.app)
+            self.assertTrue(patched_info['patched'])
+            self.assertIn('translateMenu(items)', patched_info['archive'].read('dist/preload.js').decode())
+            self.assertIn('确认退出', patched_info['archive'].read('dist/main.js').decode())
+            self.assertIn('暂无运行中的智能体', patched_info['archive'].read('dist/tray.js').decode())
+            self.assertEqual(patched_info['archive'].read('asset'), b'linux-unchanged')
+            p.restore(self.app)
+            self.assertEqual(self.asar.read_bytes(), self.original)
+            self.assertFalse(backup.exists())
+            self.assertFalse(state.exists())
+
+    def test_linux_stale_backup_and_interrupted_recovery(self):
+        ps_ok = subprocess.CompletedProcess(['/bin/ps'], 0, '', '')
+        asar_2312 = make_archive({
+            'package.json': json.dumps({'name': 'antigravity', 'productName': 'Antigravity', 'version': '2.31.2'}).encode(),
+            'dist/preload.js': self.preload,
+            'dist/main.js': self.fake_main,
+            'dist/tray.js': self.fake_tray,
+            'asset': b'linux-2312',
+        })
+        self.asar.write_bytes(asar_2312)
+        with patch.object(p.sys, 'platform', 'linux'), patch.object(p, 'run', return_value=ps_ok):
+            p.install(self.app)
+            backup, state = p.paths(self.app)
+            # Simulate update to 2.32.1 while 2.31.2 backup/state remain
+            self.asar.write_bytes(self.original)
+            self.assertEqual(p.report(p.inspect(self.app)).get('stale_backup_version'), '2.31.2')
+            with self.assertRaisesRegex(ValueError, '--replace-stale-backup'):
+                p.install(self.app)
+            p.install(self.app, replace_stale_backup=True)
+            self.assertEqual(json.loads(state.read_text())['version'], '2.32.1')
+            # Simulate interrupted install where app directory is missing between renames
+            shutil.rmtree(self.app)
+            p.restore(self.app)
+            self.assertEqual(self.asar.read_bytes(), self.original)
+            self.assertFalse(backup.exists())
+            self.assertFalse(state.exists())
+
+    def test_linux_symlink_escape_running_process_and_permissions_rejected(self):
+        outside = self.root / 'outside-secret.txt'
+        outside.write_text('secret')
+        escape_link = self.app / 'resources/escape-link'
+        escape_link.symlink_to(outside)
+        with self.assertRaisesRegex(ValueError, 'symlink escaping'):
+            p.inspect(self.app)
+        escape_link.unlink()
+
+        running_ps = subprocess.CompletedProcess(['/bin/ps'], 0, f'{self.app}/antigravity --type=zygote\n', '')
+        with patch.object(p, 'run', return_value=running_ps):
+            with self.assertRaisesRegex(ValueError, 'Quit Antigravity completely'):
+                p.ensure_stopped(self.app)
+
+        with patch.object(p.os, 'access', return_value=False):
+            with self.assertRaisesRegex(ValueError, 'Insufficient permissions'):
+                p.ensure_writable(self.app)
+
+
 if __name__ == '__main__': unittest.main()

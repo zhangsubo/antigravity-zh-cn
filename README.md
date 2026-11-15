@@ -6,17 +6,17 @@
 
 适用于 **Google Antigravity（反重力）Desktop** 的简体中文本地化补丁，提供全面界面汉化、中英文实时切换，以及原版应用的备份与还原。
 
-本项目由 **[张小璋 / zhangsubo](https://github.com/zhangsubo)** 开发维护，采用 MIT 许可证开源，为非 Google 官方的社区项目。当前适配 **macOS 上的 Antigravity Desktop 2.22.0 / 2.23.0 / 2.29.1 / 2.31.2 / 2.32.1**，已在 Apple Silicon 设备上完成实机验证。
+本项目由 **[张小璋 / zhangsubo](https://github.com/zhangsubo)** 开发维护，采用 MIT 许可证开源，为非 Google 官方的社区项目。当前适配 **macOS 与 Linux 上的 Antigravity Desktop**（macOS 支持 2.22.0 / 2.23.0 / 2.29.1 / 2.31.2 / 2.32.1，Linux 支持 **2.32.1**），已在 Apple Silicon Mac 与 Linux x86_64 设备上完成实机验证。
 
 **[仓库主页](https://github.com/zhangsubo/antigravity-zh-cn) · [安装指南](#install) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/zhangsubo/antigravity-zh-cn/issues)**
 
 ## 功能特性
 
-- **深度界面汉化**：内置 **1,848 条**简体中文词条，覆盖：
+- **深度界面汉化**：内置 **1,873 条**简体中文词条，覆盖：
   - **设置中心**：账户、通用（含语音模式）、应用、外观、浏览器、界面布局、快捷键、通知、模型与用量、定制化（含插件云端连接与多账号说明）、意见反馈、项目与运行环境（含环境初始化脚本验证）等全部设置页与悬停说明；
-  - **主界面与导航**：侧边栏（含协调器与扩展显示筛选）、创建项目向导弹窗（本地/云端远程切换、文件夹与资源选择、项目命名与重复检测）、项目与分支/工作树选择器（含新建工作树、SSH 远程主机、连接弹窗、机器切换器与 GitHub 仓库入口）、模型选择器与配额浮层（含 `新`/`快速`/`提示` 胶囊及 `本周额度`/`5 小时额度`/`剩余 %`）、主面板「自动化（Automations）」及「自定义配置（Customizations）」插件市场与已安装视图；
-  - **对话流与右侧面板**：权限审批卡片（含下载审批详情、可编辑权限目标与 macOS 辅助功能/屏幕录制权限引导卡）、对话级权限预设选择器与沙盒提示、外部资源选择器（Google Drive / GitHub）、选中引用/评论/追问（`/btw`）浮条、追问（Side Question）面板控件、多智能体实时画面面板（Multi-Agent Live Pane）、计划审阅栏、思考折叠头，以及侧边面板标签栏、终端、代码变更（Diff）、内置浏览器（含地址栏评论草稿胶囊、评论草稿编辑框与下载进度）、文件树与 CSV 查看器外围工具栏；
-  - **macOS 原生组件**：会话右键菜单（含子菜单与 SSH 远程窗口复用）、原生退出确认弹窗与状态栏托盘菜单。
+  - **主界面与导航**：侧边栏（含协调器与扩展显示筛选）、Linux 顶部菜单栏（`title-menu-bar`：工作区 / 视图 / 窗口、检查更新、命令面板、最小化/最大化/关闭与动态版本号）、创建项目向导弹窗（本地/云端远程切换、文件夹与资源选择、项目命名与重复检测）、项目与分支/工作树选择器（含新建工作树、SSH 远程主机、连接弹窗、机器切换器与 GitHub 仓库入口）、模型选择器与配额浮层（含 `新`/`快速`/`提示` 胶囊及 `本周额度`/`5 小时额度`/`剩余 %`）、主面板「自动化（Automations）」及「自定义配置（Customizations）」插件市场与已安装视图；
+  - **对话流与右侧面板**：权限审批卡片（含下载审批详情、可编辑权限目标与 macOS 辅助功能/屏幕录制权限引导卡）、对话级权限预设选择器与沙盒提示、外部资源选择器（Google Drive / GitHub）、选中引用/评论/追问（`/btw`）浮条、追问（Side Question）面板控件、多智能体实时画面面板（Multi-Agent Live Pane）、计划审阅栏、思考折叠头，以及侧边面板标签栏、终端、代码变更（Diff）、内置浏览器（含地址栏评论草稿胶囊、评论草稿编辑框与下载进度）、文件树与 CSV 查看器外围工具栏（含「在文件管理器中显示 / 在访达中显示 / 在文件资源管理器中显示」）；
+  - **原生组件（macOS & Linux）**：会话右键菜单（含子菜单与 SSH 远程窗口复用）、原生退出确认弹窗与状态栏托盘菜单。
 - **中英文实时切换**：通过主界面右下角的悬浮开关随时启用或关闭汉化，关闭后立即恢复英文原文。
 - **严格边界保护**：仅作用于受控界面控件，不翻译聊天正文、代码与 Diff 内容、输入框、命令参数、项目/分支名称、插件/技能专名或账号信息。
 - **安装校验与无损还原**：安装前核对应用版本、目标文件 SHA-256 指纹与签名完整性；完整保留原版应用备份与状态记录，随时一键还原。
@@ -52,12 +52,12 @@
 
 | 项目 | 支持情况 |
 | --- | --- |
-| 版本规则 | 四段式 `x.y.z.n`（如 `2.32.1.1`）：前三段与最新适配的 Antigravity 版本一致，第四段为针对该版本的提交序号 |
-| 应用 | Google Antigravity Desktop **2.22.0 / 2.23.0 / 2.29.1 / 2.31.2 / 2.32.1** |
-| 操作系统 | macOS |
-| 处理器 | Apple Silicon 已实测；Intel Mac 尚未实测 |
+| 版本规则 | 四段式 `x.y.z.n`（如 `2.32.1.2`）：前三段与最新适配的 Antigravity 版本一致，第四段为针对该版本的提交序号 |
+| 应用 | Google Antigravity Desktop **2.22.0 / 2.23.0 / 2.29.1 / 2.31.2 / 2.32.1**（Linux 支持 **2.32.1**） |
+| 操作系统 | macOS、Linux |
+| 处理器 | Apple Silicon Mac 与 Linux x86_64 已实测；Intel Mac / Linux arm64 尚未实测 |
 | 安装环境 | Python **3.9+**，无需 Node.js 或 npm 依赖 |
-| Windows / Linux | 暂无安装器 |
+| Windows | 暂无主分支统一安装器 |
 | Antigravity IDE / VS Code | 不支持 |
 
 安装器同时核对版本号与入口文件指纹。应用版本不受支持时，安装将停止，请勿通过修改版本号或指纹强行安装。
@@ -106,20 +106,34 @@ cd antigravity-zh-cn
 ### 2. 检查应用状态
 
 ```bash
+# macOS（默认检查 /Applications/Antigravity.app）或 Linux（自动探测常见安装目录）
 python3 tools/patcher.py doctor
+
+# Linux 自定义解压目录示例
+python3 tools/patcher.py doctor --app /path/to/Antigravity-x64
 ```
 
-该命令为只读检查，将显示应用版本、汉化状态、备份位置和文件校验值。请在检查通过后继续。
+该命令为只读检查，将显示应用版本、平台类型、汉化状态、备份位置和文件校验值。请在检查通过后继续。
 
 ### 3. 安装汉化补丁
 
-在 Antigravity 中按 `⌘Q` 完全退出应用。确认接受[安全说明](#安全说明)中的签名与权限变化后执行：
+- **macOS**：在 Antigravity 中按 `⌘Q` 完全退出应用。确认接受[安全说明](#安全说明)中的签名与权限变化后执行：
 
-```bash
-python3 tools/patcher.py install --acknowledge-signature-change --allow-local-library-loading
-```
+  ```bash
+  python3 tools/patcher.py install --acknowledge-signature-change --allow-local-library-loading
+  ```
 
-默认应用路径为 `/Applications/Antigravity.app`。若 Antigravity 自动更新覆盖了之前安装过补丁的应用、导致旧版本备份仍在，`doctor` 会显示 `stale_backup_version`；此时可在上述安装命令后追加 `--replace-stale-backup`，由安装器在核验旧备份完整且当前新版为 Google 原版签名后自动替换为新版备份。如需指定其他路径，追加 `--app "/完整路径/Antigravity.app"`。路径必须指向真实应用目录，不支持符号链接；无写入权限时应停止操作，不建议使用 `sudo` 强行安装。
+- **Linux**：完全退出 Antigravity（确保 `antigravity` 与 `language_server` 进程均已退出）后执行：
+
+  ```bash
+  # 自动探测 /opt/Antigravity、/usr/share/antigravity、~/.local/share/antigravity、~/Antigravity-x64 等目录
+  python3 tools/patcher.py install
+
+  # 或通过 --app 指定应用根目录（包含 antigravity 可执行文件与 resources/app.asar 的目录）
+  python3 tools/patcher.py install --app /path/to/Antigravity-x64
+  ```
+
+macOS 默认应用路径为 `/Applications/Antigravity.app`；Linux 会按顺序探测 `/opt/Antigravity`、`/opt/antigravity`、`/usr/share/antigravity`、`/usr/lib/antigravity`、`~/.local/share/antigravity`、`~/Antigravity-x64` 及 `PATH` 中的真实应用目录。若 Antigravity 更新覆盖了之前安装过补丁的应用、导致旧版本备份仍在，`doctor` 会显示 `stale_backup_version`；此时可在安装命令后追加 `--replace-stale-backup`，由安装器在核验旧备份完整后自动替换为新版备份。路径必须指向真实应用目录，不支持符号链接或越界软链；若目标目录无写入权限，安装器会清晰提示权限不足。
 
 ### 4. 验证安装结果
 

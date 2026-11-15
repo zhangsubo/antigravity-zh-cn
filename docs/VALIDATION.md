@@ -1,5 +1,20 @@
 # 验证记录
 
+## 2026-11-15：Linux 版 Antigravity Desktop 2.32.1 适配与 OVH Linux / Instabox XFCE 桌面实机验证
+
+- 核查官方 Linux x64 发行包 `Antigravity.tar.gz`（版本 `2.32.1-6001966350991360`，归档 SHA-256 `4cb2d4fea74a74f17cfe251841b900249c5ad2728b961efdbf729dafae7fe842`）：
+  - 解包目录 `Antigravity-x64/`（或标准安装目录 `/opt/Antigravity`）包含主程序 `antigravity`（Electron `44.9.1`，SHA-256 `3ba9114b7fbaafaf548f72c5d1bc86b7dc81098a85361784359c2c1199625bfc`）、`resources/app.asar`（SHA-256 `5b493943e67e500638555315594d5b1acbc7a02e6dac3c786651921c1ee8519f`）与 `resources/bin/language_server`；
+  - `resources/app.asar` 内全部 721 个打包文件（含 `dist/preload.js`、`dist/main.js`、`dist/tray.js` 与 `web_ui/main.js`）与 macOS `2.32.1` 逐字节完全一致；
+  - 主程序 ELF 二进制中的 Electron Fuse `EnableEmbeddedAsarIntegrityValidation` 与 `OnlyLoadAppFromAsar` 均为 `0`（关闭），更新 ASAR 内部块 SHA-256 后无需修改外层 ELF 签名即可正常启动。
+- 扩展 `tools/patcher.py` 与 `tools/compatibility.json` 支持 Linux 平台 `doctor`、`install`、`restore`（含默认路径自动探测、`--app` 自定义路径、完整备份 `<app>.zh-cn-original` 与状态文件 `<app>.zh-cn-state.json` 校验、`--replace-stale-backup`、运行中进程拦截、防符号链接越界与权限不足清晰报错），保持 macOS 全流程与测试零回归。
+- 词库扩充至 **1,873 条**，新增 Linux 顶部自定义菜单栏（`[data-testid="title-menu-bar"]`：`Workspace` / `View` / `Window`、`Version X.Y.Z`、`Check for Updates`、`Command Palette`、`Minimize`、`Maximize`、`Close`）、首次启动登录引导页（`[data-testid="onboarding-brand-shell"]`）及文件管理器定位操作（`Show in File Manager` / `Reveal in Finder` / `Show in File Explorer`），严格保护应用标题及 SSH/WSL 主机标识。
+- `npm test`：26 项 JavaScript DOM 测试、16 项 Python 测试全部通过；`npm run build` 构建产物与源码一致。
+- 已在 **OVH Linux x86_64** 与 **Instabox `box-856891`（Debian GNU/Linux 13 x86_64 + XFCE 桌面环境 `DISPLAY=:1`）** 两台 Linux 环境对官方 `Antigravity 2.32.1` 完成全闭环实机验证：
+  - 在 `box-856891` 将官方包部署至 `/opt/Antigravity`，不传 `--app` 直接执行 `python3 tools/patcher.py doctor` 自动识别 `/opt/Antigravity`；
+  - 非 root 用户执行 `python3 tools/patcher.py install` 被 `ensure_writable` 拦截并清晰提示 `Insufficient permissions to modify /opt`；`sudo python3 tools/patcher.py install` 原子生成 `/opt/Antigravity.zh-cn-original` 与 `/opt/Antigravity.zh-cn-state.json`（打补丁后 `asar_sha256` 为 `2fd659df4ce5f02a54cd0a6f638a3c319029174795fc76f650eb7f0e9bc08e7a`）；
+  - 在 `DISPLAY=:1`（XFCE 桌面）启动 `/opt/Antigravity/antigravity`，确认 X11 桌面窗口（`929x900`）正常渲染、运行期间 `restore` 被 `ensure_stopped` 正确拦截、桌面截图与 CDP 均确认界面完整汉化（`欢迎使用 Antigravity！` / `通过 Google 继续` / `使用企业账号` / `登录遇到问题？` / `中文 · 开`）且支持一键实时切换还原英文原文（`中文 · 关`）；
+  - 退出应用后执行 `sudo python3 tools/patcher.py restore`，备份与状态文件自动清理，`/opt/Antigravity/resources/app.asar` SHA-256 精确恢复为 `5b493943e67e500638555315594d5b1acbc7a02e6dac3c786651921c1ee8519f`。
+
 ## 2026-11-14：2.32.1 版本适配与 Apple Silicon Mac 实机验证
 
 - 完成 Antigravity Desktop 2.32.1 适配，词库扩充至 1,848 条，更新 `tools/compatibility.json` 中 `2.32.1` 的 `dist/preload.js`（`43592a8470cb6c0aa92e5c9879d6093d9e7f50be7d4106c3d4e97bf3c780aaba`）、`dist/main.js`（`b1d133d4aacd31170a23e277008f45b5d4bdc150ae44059a9d27059c8780cd62`）、`dist/tray.js`（`6c6b0968b45a1c7088e459657d57a9efd72d3733614349095f17b6ee94b47135`）SHA-256 指纹与精确补丁规则。
@@ -76,4 +91,4 @@ v0.1.1 修订项目文档及版本标识。词库、翻译逻辑、安装和还�
 
 ## 未验证范围
 
-Windows、Linux、Intel Mac、其他产品版本、企业受管设备策略、完整对话执行流程、自动更新后的长期行为、全部辅助功能和下拉弹出层。
+Windows、Intel Mac、Linux arm64、其他产品版本、企业受管设备策略、完整对话执行流程、自动更新后的长期行为、全部辅助功能和下拉弹出层。

@@ -1,8 +1,16 @@
 {
   "schema": 1,
   "target": "Antigravity Desktop (not Antigravity IDE)",
-  "platform": "macOS",
+  "platform": "macOS, Linux",
+  "platforms": ["darwin", "linux"],
   "bundle_id": "com.google.antigravity",
+  "linux_executable": "antigravity",
+  "linux_default_paths": [
+    "/opt/Antigravity",
+    "/opt/antigravity",
+    "/usr/share/antigravity",
+    "/usr/lib/antigravity"
+  ],
   "versions": {
     "2.22.0": {
       "preload_sha256": "81d220de63447d27db95adf67d9711b59ee317b2338ba538f419b354a54b1f60",
@@ -91,6 +99,7 @@
       }
     },
     "2.32.1": {
+      "platforms": ["darwin", "linux"],
       "preload_sha256": "43592a8470cb6c0aa92e5c9879d6093d9e7f50be7d4106c3d4e97bf3c780aaba",
       "entry": "dist/preload.js",
       "native_ui_tested": true,
