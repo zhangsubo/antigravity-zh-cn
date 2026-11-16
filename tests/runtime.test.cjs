@@ -965,7 +965,7 @@ test('2.32.1 SSH remote, macOS permissions card, resource picker, setup script, 
  openStrong.textContent='Open ↗';
  cpHint.append(d.createTextNode('Click '),openStrong,d.createTextNode(' to open macOS Privacy & Security.'));
  w.__teacherxu_antigravity_zh__.refresh();
- assert.equal(w.__teacherxu_antigravity_zh__.version,'2.32.1.2');
+ assert.equal(w.__teacherxu_antigravity_zh__.version,'2.32.1.3');
  assert.equal(d.querySelector('[data-testid="plugins-section-header"] h2').textContent,'扩展');
  assert.equal(d.querySelector('[data-testid="plugins-visibility-trigger"]').getAttribute('aria-label'),'显示或隐藏扩展');
  assert.equal(d.querySelector('#ext-item').textContent,'Settings');

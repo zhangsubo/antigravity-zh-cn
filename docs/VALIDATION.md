@@ -1,5 +1,20 @@
 # 验证记录
 
+## 2026-11-16：Windows 版 Antigravity Desktop 2.32.1 适配与本机验证
+
+- 核查官方 Windows x64 安装目录 `C:\Users\zhang\AppData\Local\Programs\Antigravity`（版本 `2.32.1`）：
+  - 安装目录包含主程序 `Antigravity.exe`（内嵌 Node `v24.22.0`、`Authenticode Status: NotSigned`）与 `resources\app.asar`（SHA-256 `5b493943e67e500638555315594d5b1acbc7a02e6dac3c786651921c1ee8519f`）；
+  - `resources\app.asar` 内的 `dist/preload.js`（`43592a8470cb6c0aa92e5c9879d6093d9e7f50be7d4106c3d4e97bf3c780aaba`）、`dist/main.js`（`b1d133d4aacd31170a23e277008f45b5d4bdc150ae44059a9d27059c8780cd62`）与 `dist/tray.js`（`6c6b0968b45a1c7088e459657d57a9efd72d3733614349095f17b6ee94b47135`）与 macOS / Linux `2.32.1` 逐字节一致；
+  - 主程序 PE 二进制中的 Electron Fuse `EnableEmbeddedAsarIntegrityValidation` 与 `OnlyLoadAppFromAsar` 均为 `0`（关闭，wire `101100011`），更新 ASAR 内部块 SHA-256 后无需修改外层 `.exe` 文件即可正常加载。
+- 扩展 `tools/patcher.py`、`tools/compatibility.json` 与仓库跨平台构建脚本（`.gitattributes`、`package.json`、`.github/workflows/test.yml`）支持 Windows (`win32`) 平台 `doctor`、`install`、`restore`：
+  - 支持常见 Windows 安装路径自动探测、`--app` 自定义路径、Windows 扩展长路径（`\\?\`）规避 260 字符 `MAX_PATH` 限制、目录联接（Junction）与符号链接越界拦截、路径大小写不敏感校验、PowerShell `Get-CimInstance Win32_Process` 运行中进程（`Antigravity.exe` 与 `resources\`）拦截、重命名前脱离应用目录锁定及 UTF-8 编码读写；
+  - 新增 4 项 `WindowsInstallerTests` 单元测试与跨平台联接测试辅助函数。
+- 本机实测验证：
+  - 不传 `--app` 执行 `tools/patcher.py doctor` 自动识别 `C:\Users\zhang\AppData\Local\Programs\Antigravity`（`platform: win32`、`version: 2.32.1`、`patched: false`、`translations: 1873`）；
+  - 宿主运行期间直接对 `C:\Users\zhang\AppData\Local\Programs\Antigravity` 执行 `tools/patcher.py install` 被 `ensure_stopped` 正确拦截并返回退出码 `1`（`Stopped: Quit Antigravity completely before patching or restoring, then retry`）；
+  - 在独立临时目录使用本机官方 `Antigravity.exe` 与 `resources\app.asar` 副本完成 `doctor -> install -> doctor (patched=True) -> patched dist/preload.js|main.js|tray.js JS 语法校验 -> restore -> doctor (patched=False)` 闭环实测，并在本机 `C:\Users\zhang\AppData\Local\Programs\Antigravity` 完成原位 `install` 与重启桌面实机验证：打补丁后 `asar_sha256` 为 `ad95da1968c997a7039280e981dc89a17f6a26bc69432123a5605457dd475e19`，`doctor` 输出 `patched: true`、`state_present: true`，完整保留 `C:\Users\zhang\AppData\Local\Programs\Antigravity.zh-cn-original` 与 `Antigravity.zh-cn-state.json`；
+  - `npm test`（26 项 JavaScript DOM 测试 + 20 项 Python 测试）、`npm run build` 与 `npm run doctor` 在 Windows（Python 3.12.16 / Node v24.22.0）下全部通过。
+
 ## 2026-11-15：Linux 版 Antigravity Desktop 2.32.1 适配与 OVH Linux / Instabox XFCE 桌面实机验证
 
 - 核查官方 Linux x64 发行包 `Antigravity.tar.gz`（版本 `2.32.1-6001966350991360`，归档 SHA-256 `4cb2d4fea74a74f17cfe251841b900249c5ad2728b961efdbf729dafae7fe842`）：
@@ -91,4 +106,4 @@ v0.1.1 修订项目文档及版本标识。词库、翻译逻辑、安装和还�
 
 ## 未验证范围
 
-Windows、Intel Mac、Linux arm64、其他产品版本、企业受管设备策略、完整对话执行流程、自动更新后的长期行为、全部辅助功能和下拉弹出层。
+Windows arm64、Intel Mac、Linux arm64、其他产品版本、企业受管设备策略、完整对话执行流程、自动更新后的长期行为、全部辅助功能和下拉弹出层。

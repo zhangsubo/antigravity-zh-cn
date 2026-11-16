@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Antigravity macOS & Linux localization installer. Python 3.9+, standard library only."""
+"""Antigravity macOS, Linux & Windows localization installer. Python 3.9+, standard library only."""
 import argparse
 import copy
 import hashlib
@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import plistlib
 import shutil
+import stat
 import struct
 import subprocess
 import sys
@@ -26,6 +27,25 @@ LINUX_DEFAULT_PATHS = (
     Path.home() / 'Antigravity-arm64',
     Path.home() / 'Antigravity',
 )
+
+
+def _windows_default_paths():
+    local_appdata = Path(os.environ.get('LOCALAPPDATA', str(Path.home() / 'AppData/Local')))
+    program_files = Path(os.environ.get('ProgramFiles', r'C:\Program Files'))
+    program_files_x86 = Path(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)'))
+    return (
+        local_appdata / 'Programs/Antigravity',
+        local_appdata / 'Antigravity',
+        program_files / 'Antigravity',
+        program_files_x86 / 'Antigravity',
+        Path.home() / 'AppData/Local/Programs/Antigravity',
+        Path.home() / 'Antigravity',
+        Path.home() / 'Antigravity-win32-x64',
+        Path.home() / 'Antigravity-win32-arm64',
+    )
+
+
+WINDOWS_DEFAULT_PATHS = _windows_default_paths()
 
 
 def digest(data):
@@ -91,11 +111,11 @@ class Archive:
 
 
 def build():
-    dictionary = json.loads((ROOT / 'locales/zh-CN.json').read_text())
+    dictionary = json.loads((ROOT / 'locales/zh-CN.json').read_text(encoding='utf-8'))
     if not dictionary or not all(isinstance(k, str) and k.strip() == k and
                                  isinstance(v, str) and v for k, v in dictionary.items()):
         raise ValueError('Invalid translation dictionary')
-    source = (ROOT / 'src/runtime.js').read_text()
+    source = (ROOT / 'src/runtime.js').read_text(encoding='utf-8')
     token = '/*__DICTIONARY__*/ {}'
     if source.count(token) != 1:
         raise ValueError('Invalid runtime template')
@@ -103,7 +123,55 @@ def build():
     return payload.encode('utf-8')
 
 
+def is_link(path):
+    if path.is_symlink():
+        return True
+    is_junction = getattr(path, 'is_junction', None)
+    if callable(is_junction):
+        return is_junction()
+    if sys.platform == 'win32':
+        try:
+            st = os.lstat(path)
+            return bool(
+                getattr(st, 'st_file_attributes', 0) & getattr(stat, 'FILE_ATTRIBUTE_REPARSE_POINT', 0x400)
+                and getattr(st, 'st_reparse_tag', 0) in (
+                    getattr(stat, 'IO_REPARSE_TAG_MOUNT_POINT', 0xA0000003),
+                    getattr(stat, 'IO_REPARSE_TAG_SYMLINK', 0xA000000C),
+                )
+            )
+        except OSError:
+            return False
+    return False
+
+
+def executable_name(platform):
+    if platform == 'darwin':
+        return 'Contents/MacOS/Antigravity'
+    return 'Antigravity.exe' if platform == 'win32' else 'antigravity'
+
+
+def same_app_path(recorded, current, platform=None):
+    if not isinstance(recorded, str):
+        return False
+    if (platform or app_platform(current)) == 'win32':
+        return os.path.normcase(os.path.abspath(recorded)) == os.path.normcase(os.path.abspath(current))
+    return recorded == str(current)
+
+
 def default_app_path():
+    if sys.platform == 'win32':
+        for candidate in WINDOWS_DEFAULT_PATHS:
+            if (candidate / 'resources/app.asar').is_file() and (candidate / 'Antigravity.exe').is_file():
+                return candidate
+        for cmd in ('Antigravity.exe', 'antigravity'):
+            which_bin = shutil.which(cmd)
+            if which_bin:
+                bin_path = Path(os.path.abspath(which_bin))
+                if not is_link(bin_path):
+                    for parent in (bin_path.parent, *list(bin_path.parents)[:3]):
+                        if (parent / 'resources/app.asar').is_file() and (parent / 'Antigravity.exe').is_file():
+                            return parent
+        return WINDOWS_DEFAULT_PATHS[0]
     if not sys.platform.startswith('linux'):
         return Path('/Applications/Antigravity.app')
     for candidate in LINUX_DEFAULT_PATHS:
@@ -112,19 +180,31 @@ def default_app_path():
     which_bin = shutil.which('antigravity')
     if which_bin:
         bin_path = Path(os.path.abspath(which_bin))
-        if not bin_path.is_symlink() and (bin_path.parent / 'resources/app.asar').is_file():
+        if not is_link(bin_path) and (bin_path.parent / 'resources/app.asar').is_file():
             return bin_path.parent
     return LINUX_DEFAULT_PATHS[0]
 
 
 def app_platform(app):
     app = Path(os.path.abspath(app))
-    backup = app.with_name(app.name + '.zh-cn-original')
+    backup, state = paths(app)
     if app.suffix == '.app' or (app / 'Contents').exists() or (backup / 'Contents').exists():
         return 'darwin'
-    if ((app / 'resources/app.asar').exists() or (app / 'antigravity').exists() or
-            (backup / 'resources/app.asar').exists() or (backup / 'antigravity').exists()):
+    if (app / 'Antigravity.exe').exists() or (backup / 'Antigravity.exe').exists():
+        return 'win32'
+    if (app / 'antigravity').exists() or (backup / 'antigravity').exists():
         return 'linux'
+    if state.is_file() and not is_link(state):
+        try:
+            metadata = json.loads(state.read_text(encoding='utf-8'))
+            if isinstance(metadata, dict) and metadata.get('platform') in ('darwin', 'linux', 'win32'):
+                return metadata['platform']
+        except (ValueError, OSError):
+            pass
+    if (app / 'resources/app.asar').exists() or (backup / 'resources/app.asar').exists():
+        return 'win32' if sys.platform == 'win32' else 'linux'
+    if sys.platform == 'win32':
+        return 'win32'
     return 'linux' if sys.platform.startswith('linux') else 'darwin'
 
 
@@ -133,18 +213,44 @@ def asar_path(app, platform=None):
     return app / ('Contents/Resources/app.asar' if platform == 'darwin' else 'resources/app.asar')
 
 
+def fs_path(path):
+    s = os.path.abspath(str(path))
+    if os.name != 'nt' or s.startswith('\\\\?\\'):
+        return Path(s)
+    if s.startswith('\\\\'):
+        return Path('\\\\?\\UNC\\' + s[2:])
+    return Path('\\\\?\\' + s)
+
+
 def assert_no_escaping_symlinks(root):
-    root = Path(os.path.abspath(root))
-    for current_root, dirnames, filenames in os.walk(root, followlinks=False):
+    root_fs = fs_path(root)
+    root_resolved = root_fs.resolve()
+    for current_root, dirnames, filenames in os.walk(root_fs, followlinks=False):
         base = Path(current_root)
-        for name in dirnames + filenames:
+        kept_dirs = []
+        for name in dirnames:
             entry = base / name
-            if entry.is_symlink():
-                resolved = entry.resolve()
+            if is_link(entry):
                 try:
-                    resolved.relative_to(root)
+                    entry.resolve().relative_to(root_resolved)
                 except ValueError as exc:
                     raise ValueError('Application directory contains a symlink escaping the app root: ' + str(entry)) from exc
+            else:
+                kept_dirs.append(name)
+        dirnames[:] = kept_dirs
+        for name in filenames:
+            entry = base / name
+            if is_link(entry):
+                try:
+                    entry.resolve().relative_to(root_resolved)
+                except ValueError as exc:
+                    raise ValueError('Application directory contains a symlink escaping the app root: ' + str(entry)) from exc
+
+
+def permission_error_hint():
+    if sys.platform == 'win32':
+        return 'run as Administrator or use a user-writable installation path'
+    return 'run with appropriate permissions (e.g. sudo) or use a user-writable installation path'
 
 
 def ensure_writable(*targets):
@@ -154,14 +260,13 @@ def ensure_writable(*targets):
         mode = (os.W_OK | os.X_OK) if check.is_dir() else os.W_OK
         if not check.exists() or not os.access(check, mode):
             raise ValueError(
-                f'Insufficient permissions to modify {target}; '
-                'run with appropriate permissions (e.g. sudo) or use a user-writable installation path'
+                f'Insufficient permissions to modify {target}; ' + permission_error_hint()
             )
 
 
 def assert_app_path(app):
     app = Path(os.path.abspath(app))
-    if app.resolve() != app or app.is_symlink():
+    if app.resolve() != app or is_link(app):
         raise ValueError('Symlink application paths are not supported')
     platform = app_platform(app)
     if platform == 'darwin':
@@ -169,14 +274,14 @@ def assert_app_path(app):
             raise ValueError('Select an existing .app bundle')
         for relative in ('Contents/Info.plist', 'Contents/Resources/app.asar'):
             p = app / relative
-            if not p.is_file() or p.is_symlink() or p.resolve() != p:
+            if not p.is_file() or is_link(p) or p.resolve() != p:
                 raise ValueError('Expected regular bundle files: ' + relative)
     else:
         if not app.is_dir():
             raise ValueError('Select an existing Antigravity application directory')
-        for relative in ('antigravity', 'resources/app.asar'):
+        for relative in (executable_name(platform), 'resources/app.asar'):
             p = app / relative
-            if not p.is_file() or p.is_symlink() or p.resolve() != p:
+            if not p.is_file() or is_link(p) or p.resolve() != p:
                 raise ValueError('Expected regular application files: ' + relative)
         assert_no_escaping_symlinks(app)
     return app
@@ -187,21 +292,22 @@ def paths(app):
 
 
 def stale_backup_version(app, version, backup, state):
-    if (backup.is_symlink() or state.is_symlink() or not backup.is_dir() or
+    if (is_link(backup) or is_link(state) or not backup.is_dir() or
             not state.is_file() or backup.resolve() != backup):
         return None
     platform = app_platform(app)
-    required = ('Contents/Info.plist', 'Contents/Resources/app.asar') if platform == 'darwin' else ('antigravity', 'resources/app.asar')
+    exe_rel = executable_name(platform)
+    required = ('Contents/Info.plist', 'Contents/Resources/app.asar') if platform == 'darwin' else (exe_rel, 'resources/app.asar')
     for relative in required:
         f = backup / relative
-        if not f.is_file() or f.is_symlink() or f.resolve() != f:
+        if not f.is_file() or is_link(f) or f.resolve() != f:
             return None
     try:
         metadata = json.loads(state.read_text(encoding='utf-8'))
     except (ValueError, OSError):
         return None
     old_version = metadata.get('version') if isinstance(metadata, dict) else None
-    if (metadata.get('schema') != 1 or metadata.get('app') != str(app) or
+    if (metadata.get('schema') != 1 or not same_app_path(metadata.get('app'), app, platform) or
             not isinstance(old_version, str) or old_version == version):
         return None
     if platform == 'darwin':
@@ -210,7 +316,7 @@ def stale_backup_version(app, version, backup, state):
             return None
     else:
         if (digest((backup / 'resources/app.asar').read_bytes()) != metadata.get('original_asar') or
-                digest((backup / 'antigravity').read_bytes()) != metadata.get('original_executable')):
+                digest((backup / exe_rel).read_bytes()) != metadata.get('original_executable')):
             return None
     return old_version
 
@@ -246,8 +352,9 @@ def inspect(app):
         rule = compatibility['versions'].get(version)
         if not rule:
             raise ValueError('Unsupported version: ' + str(version) + '; no files changed')
-        if 'platforms' in rule and 'linux' not in rule['platforms']:
-            raise ValueError('Unsupported version on Linux: ' + str(version) + '; no files changed')
+        if 'platforms' in rule and platform not in rule['platforms']:
+            label = 'Windows' if platform == 'win32' else 'Linux'
+            raise ValueError(f'Unsupported version on {label}: ' + str(version) + '; no files changed')
     preload = archive.read(rule['entry'])
     patched = MARKER in preload
     if not patched:
@@ -274,11 +381,12 @@ def report(info):
     scope = 'Settings, navigation, Automations, approval & panel toolbars'
     if info['rule'].get('text_patches'):
         scope += '; native quit dialog & tray'
-    signature_effect = (
-        'local ad-hoc outer signature and explicit app-scoped library-validation exception'
-        if platform == 'darwin'
-        else 'ASAR internal block integrity updated; no outer binary signature modification required on Linux'
-    )
+    if platform == 'darwin':
+        signature_effect = 'local ad-hoc outer signature and explicit app-scoped library-validation exception'
+    elif platform == 'win32':
+        signature_effect = 'ASAR internal block integrity updated; no outer executable modification required on Windows'
+    else:
+        signature_effect = 'ASAR internal block integrity updated; no outer binary signature modification required on Linux'
     result = {'app': str(info['app']), 'platform': platform, 'version': info['version'],
               'patched': info['patched'], 'asar_sha256': info['asar_sha256'],
               'translations': len(json.loads((ROOT / 'locales/zh-CN.json').read_text(encoding='utf-8'))),
@@ -293,22 +401,55 @@ def report(info):
 
 
 def run(*args):
-    return subprocess.run(args, check=True, capture_output=True, text=True)
+    return subprocess.run(args, check=True, capture_output=True, text=True, errors='replace')
 
 
 def ensure_stopped(app):
+    platform = app_platform(app)
+    if platform == 'win32':
+        output = run(
+            'powershell', '-NoProfile', '-NonInteractive', '-Command',
+            'Get-CimInstance Win32_Process | ForEach-Object { $_.ExecutablePath; $_.CommandLine }',
+        ).stdout
+        targets = (
+            str(app / 'Antigravity.exe').replace('\\', '/').lower(),
+            str(app / 'resources').replace('\\', '/').lower() + '/',
+        )
+        for line in output.splitlines():
+            normalized = line.replace('\\', '/').lower()
+            if 'patcher.py' in normalized:
+                continue
+            if any(t in normalized for t in targets):
+                raise ValueError('Quit Antigravity completely before patching or restoring, then retry')
+        return
     output = run('/bin/ps', '-axo', 'command=').stdout
-    if app_platform(app) == 'darwin':
-        executable = str(app / 'Contents/MacOS') + '/'
-        if any(executable in line for line in output.splitlines()):
+    if platform == 'darwin':
+        executable = str(app / 'Contents/MacOS').replace('\\', '/') + '/'
+        if any(executable in line.replace('\\', '/') for line in output.splitlines()):
             raise ValueError('Quit Antigravity completely with Cmd+Q, then retry')
     else:
-        targets = (str(app / 'antigravity'), str(app / 'resources/'))
+        targets = (
+            str(app / 'antigravity').replace('\\', '/'),
+            str(app / 'resources').replace('\\', '/') + '/',
+        )
         for line in output.splitlines():
-            if 'patcher.py' in line:
+            normalized = line.replace('\\', '/')
+            if 'patcher.py' in normalized:
                 continue
-            if any(t in line for t in targets):
+            if any(t in normalized for t in targets):
                 raise ValueError('Quit Antigravity completely before patching or restoring, then retry')
+
+
+def leave_app_dir_if_inside(app):
+    if sys.platform != 'win32':
+        return
+    try:
+        cwd = Path.cwd().resolve()
+        app_resolved = Path(app).resolve()
+        if cwd == app_resolved or app_resolved in cwd.parents:
+            os.chdir(Path(app).parent)
+    except OSError:
+        pass
 
 
 def verify_signature(app):
@@ -357,15 +498,18 @@ def install(app, acknowledge=False, allow_local_libraries=False, replace_stale_b
             raise ValueError('Read README first. Installation requires --acknowledge-signature-change')
         if not allow_local_libraries:
             raise ValueError('Local signing requires an app-scoped library-validation exception; read README and use --allow-local-library-loading')
-    else:
+    elif platform == 'linux':
         if not sys.platform.startswith('linux'):
             raise ValueError('Linux installation requires running on Linux')
+    elif platform == 'win32':
+        if sys.platform != 'win32':
+            raise ValueError('Windows installation requires running on Windows')
     info = inspect(app)
     app = info['app']
     if info['patched']:
         raise ValueError('Already patched; restore before installing a different patch version')
     backup, state = paths(app)
-    has_existing = backup.exists() or state.exists() or backup.is_symlink() or state.is_symlink()
+    has_existing = backup.exists() or state.exists() or is_link(backup) or is_link(state)
     stale_version = stale_backup_version(app, info['version'], backup, state) if has_existing else None
     if has_existing:
         if not stale_version:
@@ -410,7 +554,7 @@ def install(app, acknowledge=False, allow_local_libraries=False, replace_stale_b
                 '--preserve-metadata=flags,runtime', '--entitlements', str(entitlements_path), str(staged))
             verify_signature(staged)
         else:
-            shutil.copytree(app, staged, symlinks=True)
+            shutil.copytree(fs_path(app), fs_path(staged), symlinks=True)
             patched_hash = patch_bundle(staged)
         ensure_stopped(app)
         # Detect an updater replacing the original while we prepared the copy.
@@ -421,11 +565,11 @@ def install(app, acknowledge=False, allow_local_libraries=False, replace_stale_b
                         'original_asar': info['asar_sha256'], 'patched_asar': patched_hash,
                         'original_plist': digest((app / 'Contents/Info.plist').read_bytes())}
         else:
-            metadata = {'schema': 1, 'platform': 'linux', 'app': str(app), 'version': info['version'],
+            metadata = {'schema': 1, 'platform': platform, 'app': str(app), 'version': info['version'],
                         'original_asar': info['asar_sha256'], 'patched_asar': patched_hash,
-                        'original_executable': digest((app / 'antigravity').read_bytes())}
+                        'original_executable': digest((app / executable_name(platform)).read_bytes())}
         if stale_version:
-            os.rename(backup, old_backup)
+            os.rename(fs_path(backup), fs_path(old_backup))
             moved_stale_backup = True
             os.rename(state, old_state)
             moved_stale_state = True
@@ -435,12 +579,13 @@ def install(app, acknowledge=False, allow_local_libraries=False, replace_stale_b
             json.dump(metadata, f, indent=2)
             f.flush()
             os.fsync(f.fileno())
-        os.rename(app, backup)
+        leave_app_dir_if_inside(app)
+        os.rename(fs_path(app), fs_path(backup))
         moved_original = True
         try:
-            os.rename(staged, app)
+            os.rename(fs_path(staged), fs_path(app))
         except BaseException:
-            os.rename(backup, app)
+            os.rename(fs_path(backup), fs_path(app))
             moved_original = False
             raise
         committed = True
@@ -451,8 +596,8 @@ def install(app, acknowledge=False, allow_local_libraries=False, replace_stale_b
             if moved_stale_state and not state.exists():
                 os.rename(old_state, state)
             if moved_stale_backup and not backup.exists():
-                os.rename(old_backup, backup)
-        shutil.rmtree(staging, ignore_errors=True)
+                os.rename(fs_path(old_backup), fs_path(backup))
+        shutil.rmtree(fs_path(staging), ignore_errors=True)
     return report(inspect(app))
 
 
@@ -462,19 +607,23 @@ def restore(app):
     if platform == 'darwin':
         if sys.platform != 'darwin':
             raise ValueError('v0.1 supports macOS restoration only')
-    else:
+    elif platform == 'linux':
         if not sys.platform.startswith('linux'):
             raise ValueError('Linux restoration requires running on Linux')
+    elif platform == 'win32':
+        if sys.platform != 'win32':
+            raise ValueError('Windows restoration requires running on Windows')
     backup, state = paths(app)
-    if state.is_symlink() or backup.is_symlink() or backup.resolve() != backup:
+    if is_link(state) or is_link(backup) or backup.resolve() != backup:
         raise ValueError('Invalid recovery path')
     if not state.is_file():
         raise ValueError('No recovery state file found for ' + str(app))
     metadata = json.loads(state.read_text(encoding='utf-8'))
-    if metadata.get('schema') != 1 or metadata.get('app') != str(app):
+    if metadata.get('schema') != 1 or not same_app_path(metadata.get('app'), app, platform):
         raise ValueError('Recovery record does not match the application')
     ensure_writable(app.parent, state, *([backup] if backup.exists() else []), *([app] if app.exists() else []))
     ensure_stopped(app)
+    exe_rel = executable_name(platform)
     if not backup.exists() and app.exists():
         assert_app_path(app)
         if platform == 'darwin':
@@ -486,7 +635,7 @@ def restore(app):
                         'recovered': 'interrupted before original app was moved'}
         else:
             if (digest((app / 'resources/app.asar').read_bytes()) == metadata['original_asar'] and
-                    digest((app / 'antigravity').read_bytes()) == metadata['original_executable']):
+                    digest((app / exe_rel).read_bytes()) == metadata['original_executable']):
                 state.unlink()
                 return {'restored': True, 'app': str(app), 'version': metadata['version'],
                         'recovered': 'interrupted before original app was moved'}
@@ -499,14 +648,14 @@ def restore(app):
     else:
         if not backup.is_dir():
             raise ValueError('Backup directory is missing')
-        for relative in ('antigravity', 'resources/app.asar'):
+        for relative in (exe_rel, 'resources/app.asar'):
             bf = backup / relative
-            if not bf.is_file() or bf.is_symlink() or bf.resolve() != bf:
+            if not bf.is_file() or is_link(bf) or bf.resolve() != bf:
                 raise ValueError('Expected regular backup files: ' + relative)
         assert_no_escaping_symlinks(backup)
         if digest((backup / 'resources/app.asar').read_bytes()) != metadata['original_asar']:
             raise ValueError('Backup archive checksum mismatch')
-        if digest((backup / 'antigravity').read_bytes()) != metadata['original_executable']:
+        if digest((backup / exe_rel).read_bytes()) != metadata['original_executable']:
             raise ValueError('Backup executable checksum mismatch')
     # Missing app is recoverable after interruption between the two directory renames.
     if app.exists():
@@ -517,22 +666,27 @@ def restore(app):
     current = staging / app.name
     try:
         if app.exists():
-            os.rename(app, current)
+            leave_app_dir_if_inside(app)
+            os.rename(fs_path(app), fs_path(current))
         try:
-            os.rename(backup, app)
+            os.rename(fs_path(backup), fs_path(app))
         except BaseException:
             if current.exists():
-                os.rename(current, app)
+                os.rename(fs_path(current), fs_path(app))
             raise
         state.unlink()
     finally:
         # If rollback itself fails, retain current as a recoverable copy.
         if app.exists():
-            shutil.rmtree(staging, ignore_errors=True)
+            shutil.rmtree(fs_path(staging), ignore_errors=True)
     return {'restored': True, 'app': str(app), 'version': metadata['version']}
 
 
 def main():
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('command', choices=('doctor', 'build', 'install', 'restore'))
     parser.add_argument('--app', type=Path, default=None)
@@ -557,8 +711,7 @@ def main():
         print(json.dumps(result, ensure_ascii=False, indent=2))
     except PermissionError as exc:
         print(
-            f'Stopped: Insufficient permissions ({exc}); '
-            'run with appropriate permissions (e.g. sudo) or use a user-writable installation path',
+            f'Stopped: Insufficient permissions ({exc}); ' + permission_error_hint(),
             file=sys.stderr,
         )
         return 1

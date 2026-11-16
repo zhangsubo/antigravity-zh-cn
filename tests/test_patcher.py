@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 from pathlib import Path
 import plistlib
 import struct
@@ -12,6 +13,19 @@ import shutil
 spec = importlib.util.spec_from_file_location('patcher', Path(__file__).parents[1] / 'tools/patcher.py')
 p = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(p)
+
+
+def create_test_link(link_path, target_path):
+    try:
+        link_path.symlink_to(target_path, target_is_directory=target_path.is_dir())
+    except OSError as exc:
+        if os.name == 'nt' and getattr(exc, 'winerror', None) == 1314 and target_path.is_dir():
+            subprocess.run(
+                ['cmd', '/c', 'mklink', '/J', str(link_path), str(target_path)],
+                check=True, capture_output=True,
+            )
+        else:
+            raise
 
 
 def make_archive(files):
@@ -159,7 +173,7 @@ class InstallerTests(unittest.TestCase):
         data = plistlib.loads(self.plist.read_bytes());data['CFBundleShortVersionString']='999.0'
         self.plist.write_bytes(plistlib.dumps(data))
         with self.assertRaises(ValueError): p.inspect(self.app)
-        alias = self.root / 'Alias.app';alias.symlink_to(self.app)
+        alias = self.root / 'Alias.app';create_test_link(alias, self.app)
         with self.assertRaises(ValueError): p.inspect(alias)
 
     def test_signature_failure_leaves_original_intact(self):
@@ -239,12 +253,12 @@ class InstallerTests(unittest.TestCase):
             with patch.object(p, 'run', side_effect=failing):
                 with self.assertRaises(subprocess.CalledProcessError):
                     p.install(self.app, True, True, True)
-            self.assertEqual(json.loads(state.read_text())['version'], '2.22.0')
+            self.assertEqual(json.loads(state.read_text(encoding='utf-8'))['version'], '2.22.0')
             self.assertEqual(self.asar.read_bytes(), asar_2312)
             with patch.object(p, 'run', side_effect=self.run_fake):
                 p.install(self.app, True, True, True)
                 self.assertTrue(p.inspect(self.app)['patched'])
-                self.assertEqual(json.loads(state.read_text())['version'], '2.31.2')
+                self.assertEqual(json.loads(state.read_text(encoding='utf-8'))['version'], '2.31.2')
                 p.restore(self.app)
                 self.assertEqual(self.asar.read_bytes(), asar_2312)
                 self.assertFalse(backup.exists())
@@ -357,7 +371,7 @@ class LinuxInstallerTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, '--replace-stale-backup'):
                 p.install(self.app)
             p.install(self.app, replace_stale_backup=True)
-            self.assertEqual(json.loads(state.read_text())['version'], '2.32.1')
+            self.assertEqual(json.loads(state.read_text(encoding='utf-8'))['version'], '2.32.1')
             # Simulate interrupted install where app directory is missing between renames
             shutil.rmtree(self.app)
             p.restore(self.app)
@@ -366,16 +380,175 @@ class LinuxInstallerTests(unittest.TestCase):
             self.assertFalse(state.exists())
 
     def test_linux_symlink_escape_running_process_and_permissions_rejected(self):
-        outside = self.root / 'outside-secret.txt'
-        outside.write_text('secret')
+        outside = self.root / 'outside-secret'
+        outside.mkdir()
+        (outside / 'secret.txt').write_text('secret', encoding='utf-8')
         escape_link = self.app / 'resources/escape-link'
-        escape_link.symlink_to(outside)
+        create_test_link(escape_link, outside)
         with self.assertRaisesRegex(ValueError, 'symlink escaping'):
             p.inspect(self.app)
         escape_link.unlink()
 
         running_ps = subprocess.CompletedProcess(['/bin/ps'], 0, f'{self.app}/antigravity --type=zygote\n', '')
         with patch.object(p, 'run', return_value=running_ps):
+            with self.assertRaisesRegex(ValueError, 'Quit Antigravity completely'):
+                p.ensure_stopped(self.app)
+
+        with patch.object(p.os, 'access', return_value=False):
+            with self.assertRaisesRegex(ValueError, 'Insufficient permissions'):
+                p.ensure_writable(self.app)
+
+
+class WindowsInstallerTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve()
+        self.app = self.root / 'Antigravity'
+        (self.app / 'resources').mkdir(parents=True)
+        self.exe = self.app / 'Antigravity.exe'
+        self.exe.write_bytes(b'MZ-fake-antigravity-exe-2.32.1')
+        self.preload = b"/* test preload */\nshowContextMenu: (items) => electron_1.ipcRenderer.invoke('window:show-context-menu', items),\n"
+        self.fake_main = (
+            "label: 'New Window',\nlabel: 'No agents running',\n"
+            "label: `Open ${electron_1.app.getName()}`,\nlabel: 'Quit',\n"
+            "buttons: ['Cancel', 'Quit'],\ntitle: 'Confirm Quit',\n"
+            "message: 'Are you sure you want to quit?',\n"
+            "detail: 'There may be agents or background tasks running.',\n"
+        ).encode()
+        self.fake_tray = (
+            "(count > 0 ? `${count}` : 'No') +\n"
+            "                    ' agent' +\n"
+            "                    (count === 1 ? '' : 's') +\n"
+            "                    ' running'"
+        ).encode()
+        data = make_archive({
+            'package.json': json.dumps({'name': 'antigravity', 'productName': 'Antigravity', 'version': '2.32.1'}).encode(),
+            'dist/preload.js': self.preload,
+            'dist/main.js': self.fake_main,
+            'dist/tray.js': self.fake_tray,
+            'asset': b'windows-unchanged',
+        })
+        self.asar = self.app / 'resources/app.asar'
+        self.asar.write_bytes(data)
+        self.original = data
+        self.real_json_loads = json.loads
+
+        def loads(raw_data, *args, **kwargs):
+            value = self.real_json_loads(raw_data, *args, **kwargs)
+            if isinstance(value, dict) and value.get('target') == 'Antigravity Desktop (not Antigravity IDE)':
+                for ver in ('2.31.2', '2.32.1'):
+                    if ver in value['versions']:
+                        value['versions'][ver]['preload_sha256'] = p.digest(self.preload)
+                        tp = value['versions'][ver].get('text_patches', {})
+                        if tp:
+                            tp['dist/preload.js']['sha256'] = p.digest(self.preload)
+                            tp['dist/main.js']['sha256'] = p.digest(self.fake_main)
+                            tp['dist/tray.js']['sha256'] = p.digest(self.fake_tray)
+            return value
+
+        self.loads_patch = patch.object(p.json, 'loads', side_effect=loads)
+        self.loads_patch.start()
+
+    def tearDown(self):
+        self.loads_patch.stop()
+        self.tmp.cleanup()
+
+    def test_windows_default_app_detection_and_doctor_report(self):
+        with patch.object(p.sys, 'platform', 'win32'), patch.object(p, 'WINDOWS_DEFAULT_PATHS', (self.root / 'missing', self.app)):
+            self.assertEqual(p.default_app_path(), self.app)
+        bin_dir = self.app / 'resources/bin'
+        bin_dir.mkdir(parents=True)
+        cmd_shim = bin_dir / 'antigravity.cmd'
+        cmd_shim.write_text('@echo off\n', encoding='utf-8')
+        with patch.object(p.sys, 'platform', 'win32'), \
+                patch.object(p, 'WINDOWS_DEFAULT_PATHS', (self.root / 'missing',)), \
+                patch.object(p.shutil, 'which', side_effect=lambda name: str(cmd_shim) if name == 'antigravity' else None):
+            self.assertEqual(p.default_app_path(), self.app)
+        info = p.inspect(self.app)
+        self.assertEqual(info['platform'], 'win32')
+        self.assertEqual(info['version'], '2.32.1')
+        self.assertFalse(info['patched'])
+        rep = p.report(info)
+        self.assertEqual(rep['platform'], 'win32')
+        self.assertIn('no outer executable modification required on Windows', rep['signature_effect'])
+
+    def test_windows_install_and_restore_full_original(self):
+        ps_ok = subprocess.CompletedProcess(['powershell'], 0, 'python tools/patcher.py install\n', '')
+        with patch.object(p.sys, 'platform', 'win32'), patch.object(p, 'run', return_value=ps_ok):
+            res = p.install(self.app)
+            self.assertTrue(res['patched'])
+            self.assertEqual(res['platform'], 'win32')
+            backup, state = p.paths(self.app)
+            self.assertTrue(backup.is_dir())
+            self.assertTrue(state.is_file())
+            meta = json.loads(state.read_text(encoding='utf-8'))
+            self.assertEqual(meta['platform'], 'win32')
+            self.assertEqual(meta['original_executable'], p.digest(self.exe.read_bytes()))
+            self.assertEqual((backup / 'resources/app.asar').read_bytes(), self.original)
+            patched_info = p.inspect(self.app)
+            self.assertTrue(patched_info['patched'])
+            self.assertIn('translateMenu(items)', patched_info['archive'].read('dist/preload.js').decode())
+            self.assertIn('确认退出', patched_info['archive'].read('dist/main.js').decode())
+            self.assertIn('暂无运行中的智能体', patched_info['archive'].read('dist/tray.js').decode())
+            self.assertEqual(patched_info['archive'].read('asset'), b'windows-unchanged')
+            meta['app'] = str(self.app).swapcase()
+            state.write_text(json.dumps(meta, indent=2), encoding='utf-8')
+            with patch.object(p.os.path, 'normcase', side_effect=lambda s: str(s).lower()):
+                p.restore(self.app)
+            self.assertEqual(self.asar.read_bytes(), self.original)
+            self.assertFalse(backup.exists())
+            self.assertFalse(state.exists())
+
+    def test_windows_stale_backup_and_interrupted_recovery(self):
+        ps_ok = subprocess.CompletedProcess(['powershell'], 0, '', '')
+        asar_2312 = make_archive({
+            'package.json': json.dumps({'name': 'antigravity', 'productName': 'Antigravity', 'version': '2.31.2'}).encode(),
+            'dist/preload.js': self.preload,
+            'dist/main.js': self.fake_main,
+            'dist/tray.js': self.fake_tray,
+            'asset': b'windows-2312',
+        })
+        self.asar.write_bytes(asar_2312)
+        with patch.object(p.sys, 'platform', 'win32'), patch.object(p, 'run', return_value=ps_ok):
+            p.install(self.app)
+            backup, state = p.paths(self.app)
+            # Simulate update to 2.32.1 while 2.31.2 backup/state remain
+            self.asar.write_bytes(self.original)
+            self.assertEqual(p.report(p.inspect(self.app)).get('stale_backup_version'), '2.31.2')
+            with self.assertRaisesRegex(ValueError, '--replace-stale-backup'):
+                p.install(self.app)
+            p.install(self.app, replace_stale_backup=True)
+            self.assertEqual(json.loads(state.read_text(encoding='utf-8'))['version'], '2.32.1')
+            # Simulate interrupted install where app directory is missing between renames
+            shutil.rmtree(self.app)
+            p.restore(self.app)
+            self.assertEqual(self.asar.read_bytes(), self.original)
+            self.assertFalse(backup.exists())
+            self.assertFalse(state.exists())
+
+    def test_windows_symlink_escape_running_process_and_permissions_rejected(self):
+        outside = self.root / 'outside-secret'
+        outside.mkdir()
+        (outside / 'secret.txt').write_text('secret', encoding='utf-8')
+        escape_link = self.app / 'resources/escape-link'
+        create_test_link(escape_link, outside)
+        with self.assertRaisesRegex(ValueError, 'symlink escaping'):
+            p.inspect(self.app)
+        escape_link.unlink()
+
+        alias = self.root / 'AliasApp'
+        create_test_link(alias, self.app)
+        with self.assertRaisesRegex(ValueError, 'Symlink application paths'):
+            p.inspect(alias)
+        alias.unlink()
+
+        running_exe = subprocess.CompletedProcess(['powershell'], 0, f'{str(self.app).upper()}\\Antigravity.exe --type=gpu-process\n', '')
+        with patch.object(p, 'run', return_value=running_exe):
+            with self.assertRaisesRegex(ValueError, 'Quit Antigravity completely'):
+                p.ensure_stopped(self.app)
+
+        running_ls = subprocess.CompletedProcess(['powershell'], 0, f'{str(self.app).lower()}\\resources\\bin\\language_server.exe --standalone\n', '')
+        with patch.object(p, 'run', return_value=running_ls):
             with self.assertRaisesRegex(ValueError, 'Quit Antigravity completely'):
                 p.ensure_stopped(self.app)
 

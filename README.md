@@ -6,7 +6,7 @@
 
 适用于 **Google Antigravity（反重力）Desktop** 的简体中文本地化补丁，提供全面界面汉化、中英文实时切换，以及原版应用的备份与还原。
 
-本项目由 **[张小璋 / zhangsubo](https://github.com/zhangsubo)** 开发维护，采用 MIT 许可证开源，为非 Google 官方的社区项目。当前适配 **macOS 与 Linux 上的 Antigravity Desktop**（macOS 支持 2.22.0 / 2.23.0 / 2.29.1 / 2.31.2 / 2.32.1，Linux 支持 **2.32.1**），已在 Apple Silicon Mac 与 Linux x86_64 设备上完成实机验证。
+本项目由 **[张小璋 / zhangsubo](https://github.com/zhangsubo)** 开发维护，采用 MIT 许可证开源，为非 Google 官方的社区项目。当前适配 **macOS、Linux 与 Windows 上的 Antigravity Desktop**（macOS 支持 2.22.0 / 2.23.0 / 2.29.1 / 2.31.2 / 2.32.1，Linux 与 Windows 支持 **2.32.1**），已在 Apple Silicon Mac、Linux x86_64 与 Windows 11 x64 设备上完成验证。
 
 **[仓库主页](https://github.com/zhangsubo/antigravity-zh-cn) · [安装指南](#install) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/zhangsubo/antigravity-zh-cn/issues)**
 
@@ -52,12 +52,11 @@
 
 | 项目 | 支持情况 |
 | --- | --- |
-| 版本规则 | 四段式 `x.y.z.n`（如 `2.32.1.2`）：前三段与最新适配的 Antigravity 版本一致，第四段为针对该版本的提交序号 |
-| 应用 | Google Antigravity Desktop **2.22.0 / 2.23.0 / 2.29.1 / 2.31.2 / 2.32.1**（Linux 支持 **2.32.1**） |
-| 操作系统 | macOS、Linux |
-| 处理器 | Apple Silicon Mac 与 Linux x86_64 已实测；Intel Mac / Linux arm64 尚未实测 |
+| 版本规则 | 四段式 `x.y.z.n`（如 `2.32.1.3`）：前三段与最新适配的 Antigravity 版本一致，第四段为针对该版本的提交序号 |
+| 应用 | Google Antigravity Desktop **2.22.0 / 2.23.0 / 2.29.1 / 2.31.2 / 2.32.1**（Linux 与 Windows 支持 **2.32.1**） |
+| 操作系统 | macOS、Linux、Windows |
+| 处理器 | Apple Silicon Mac、Linux x86_64、Windows x64 已验证；Intel Mac / Linux arm64 / Windows arm64 尚未实测 |
 | 安装环境 | Python **3.9+**，无需 Node.js 或 npm 依赖 |
-| Windows | 暂无主分支统一安装器 |
 | Antigravity IDE / VS Code | 不支持 |
 
 安装器同时核对版本号与入口文件指纹。应用版本不受支持时，安装将停止，请勿通过修改版本号或指纹强行安装。
@@ -111,6 +110,12 @@ python3 tools/patcher.py doctor
 
 # Linux 自定义解压目录示例
 python3 tools/patcher.py doctor --app /path/to/Antigravity-x64
+
+# Windows（自动探测 %LOCALAPPDATA%\Programs\Antigravity 等常见安装目录）
+python tools/patcher.py doctor
+
+# Windows 自定义安装目录示例
+python tools/patcher.py doctor --app "C:\path\to\Antigravity"
 ```
 
 该命令为只读检查，将显示应用版本、平台类型、汉化状态、备份位置和文件校验值。请在检查通过后继续。
@@ -133,11 +138,21 @@ python3 tools/patcher.py doctor --app /path/to/Antigravity-x64
   python3 tools/patcher.py install --app /path/to/Antigravity-x64
   ```
 
-macOS 默认应用路径为 `/Applications/Antigravity.app`；Linux 会按顺序探测 `/opt/Antigravity`、`/opt/antigravity`、`/usr/share/antigravity`、`/usr/lib/antigravity`、`~/.local/share/antigravity`、`~/Antigravity-x64` 及 `PATH` 中的真实应用目录。若 Antigravity 更新覆盖了之前安装过补丁的应用、导致旧版本备份仍在，`doctor` 会显示 `stale_backup_version`；此时可在安装命令后追加 `--replace-stale-backup`，由安装器在核验旧备份完整后自动替换为新版备份。路径必须指向真实应用目录，不支持符号链接或越界软链；若目标目录无写入权限，安装器会清晰提示权限不足。
+- **Windows**：完全退出 Antigravity（确保托盘图标、`Antigravity.exe` 与 `language_server.exe` 进程均已退出）后，在 PowerShell 或命令提示符中执行：
+
+  ```powershell
+  # 自动探测 %LOCALAPPDATA%\Programs\Antigravity、%LOCALAPPDATA%\Antigravity、%ProgramFiles%\Antigravity 等目录
+  python tools/patcher.py install
+
+  # 或通过 --app 指定应用根目录（包含 Antigravity.exe 与 resources\app.asar 的目录）
+  python tools/patcher.py install --app "C:\path\to\Antigravity"
+  ```
+
+macOS 默认应用路径为 `/Applications/Antigravity.app`；Linux 会按顺序探测 `/opt/Antigravity`、`/opt/antigravity`、`/usr/share/antigravity`、`/usr/lib/antigravity`、`~/.local/share/antigravity`、`~/Antigravity-x64` 及 `PATH` 中的真实应用目录；Windows 会按顺序探测 `%LOCALAPPDATA%\Programs\Antigravity`、`%LOCALAPPDATA%\Antigravity`、`%ProgramFiles%\Antigravity`、`%ProgramFiles(x86)%\Antigravity` 及 `PATH` 中的真实应用目录。若 Antigravity 更新覆盖了之前安装过补丁的应用、导致旧版本备份仍在，`doctor` 会显示 `stale_backup_version`；此时可在安装命令后追加 `--replace-stale-backup`，由安装器在核验旧备份完整后自动替换为新版备份。路径必须指向真实应用目录，不支持符号链接、目录联接（Junction）或越界软链；若目标目录无写入权限（如 Windows 下安装于 `Program Files`），安装器会提示权限不足（Windows 请以管理员身份运行终端）。
 
 ### 4. 验证安装结果
 
-重新打开 `/Applications/Antigravity.app`，进入设置，确认通用、应用、外观等页面的目标文字显示为中文。请勿双击应用旁边的原版备份。
+重新打开 Antigravity（macOS 为 `/Applications/Antigravity.app`，Windows/Linux 从原快捷方式或应用目录启动），进入设置，确认通用、应用、外观等页面的目标文字显示为中文。请勿双击应用旁边的 `.zh-cn-original` 原版备份。
 
 ## 使用说明
 
@@ -152,7 +167,11 @@ macOS 默认应用路径为 `/Applications/Antigravity.app`；Linux 会按顺序
 完全退出 Antigravity 后，在补丁目录执行：
 
 ```bash
+# macOS / Linux
 python3 tools/patcher.py restore
+
+# Windows
+python tools/patcher.py restore
 ```
 
 工具将校验备份并恢复完整原版应用及其签名。自定义路径的应用需使用与安装时相同的 `--app` 参数。
@@ -197,7 +216,7 @@ npm run build
 
 请通过 [GitHub Issues](https://github.com/zhangsubo/antigravity-zh-cn/issues) 提交安装问题、翻译修正或功能建议，并提供：
 
-- macOS 版本、处理器类型及 Antigravity 版本。
+- 操作系统版本（macOS / Linux / Windows）、处理器类型及 Antigravity 版本。
 - 补丁版本、操作步骤和完整错误信息。
 - 已遮挡个人信息的相关截图。
 

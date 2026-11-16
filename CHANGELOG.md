@@ -1,5 +1,15 @@
 # 更新日志
 
+## [2.32.1.3] - 2026-11-16
+
+### 新增与改进
+
+- 新增 **Windows 版 Antigravity Desktop 2.32.1** 安装、诊断与完整还原支持：
+  - `tools/patcher.py` 支持 Windows 常见安装路径自动探测（`%LOCALAPPDATA%\Programs\Antigravity`、`%LOCALAPPDATA%\Antigravity`、`%ProgramFiles%\Antigravity` 等及 `PATH` 可执行文件定位）与 `--app` 自定义路径；
+  - 支持 Windows 完整目录原子备份（`<app>.zh-cn-original`）与状态记录（`<app>.zh-cn-state.json`，含 `platform: "win32"`、`original_asar`、`patched_asar` 与 `original_executable` SHA-256 校验）、`--replace-stale-backup` 升级备份替换、中断恢复、基于 PowerShell `Get-CimInstance Win32_Process` 的运行中进程（`Antigravity.exe` / `resources\`）拦截、路径大小写不敏感匹配、目录联接（Junction）与符号链接越界防护、UTF-8 编码兼容与重命名前自动脱离应用目录句柄；
+  - 新增 `.gitattributes`（`* text=auto eol=lf`）统一跨平台换行符，并更新 `package.json` 跨平台 `npm test` / `npm run build` / `npm run doctor` 脚本；
+  - 新增 4 项 `WindowsInstallerTests` 单元测试与跨平台联接测试辅助（累计 20 项 Python 测试 + 26 项 JS DOM 测试），并在 `.github/workflows/test.yml` 加入 `windows-latest` CI 矩阵。
+
 ## [2.32.1.2] - 2026-11-15
 
 ### 新增与改进
@@ -64,6 +74,7 @@
 - 收录 6 张已遮挡账号的实机截图与 3 张中英文对比图。
 - 完成 19 项自动化测试，以及 Apple Silicon Mac 上的安装、切换、重启和完整还原验证。
 
+[2.32.1.3]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v2.32.1.3
 [2.32.1.2]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v2.32.1.2
 [2.32.1.1]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v2.32.1.1
 [2.31.2.1]: https://github.com/zhangsubo/antigravity-zh-cn/releases/tag/v2.31.2.1
