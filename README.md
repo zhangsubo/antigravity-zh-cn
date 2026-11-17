@@ -1,5 +1,12 @@
 # Antigravity 简体中文汉化补丁
 
+> [!IMPORTANT]
+> **本项目已停止更新，并归档保存。**
+>
+> 后续版本、安装指南与问题反馈请前往新项目：**[antigravity-chinese-patch](https://github.com/zhangsubo/antigravity-chinese-patch)**。
+>
+> 本仓库仅保留历史代码与 Releases，以下内容为停止维护时的文档，不再更新。
+
 [![Release](https://img.shields.io/github/v/release/zhangsubo/antigravity-zh-cn?color=blue)](https://github.com/zhangsubo/antigravity-zh-cn/releases/latest)
 [![Tests](https://github.com/zhangsubo/antigravity-zh-cn/actions/workflows/test.yml/badge.svg)](https://github.com/zhangsubo/antigravity-zh-cn/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -8,7 +15,7 @@
 
 本项目由 **[张小璋 / zhangsubo](https://github.com/zhangsubo)** 开发维护，采用 MIT 许可证开源，为非 Google 官方的社区项目。当前适配 **macOS、Linux 与 Windows 上的 Antigravity Desktop**（macOS 支持 2.22.0 / 2.23.0 / 2.29.1 / 2.31.2 / 2.32.1，Linux 与 Windows 支持 **2.32.1**），已在 Apple Silicon Mac、Linux x86_64 与 Windows 11 x64 设备上完成验证。
 
-**[仓库主页](https://github.com/zhangsubo/antigravity-zh-cn) · [安装指南](#install) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/zhangsubo/antigravity-zh-cn/issues)**
+**[仓库主页](https://github.com/zhangsubo/antigravity-zh-cn) · [安装指南](#install) · [更新日志](CHANGELOG.md) · [问题反馈](https://github.com/zhangsubo/antigravity-chinese-patch/issues)**
 
 ## 功能特性
 
@@ -214,7 +221,7 @@ npm run build
 
 ## 问题反馈
 
-请通过 [GitHub Issues](https://github.com/zhangsubo/antigravity-zh-cn/issues) 提交安装问题、翻译修正或功能建议，并提供：
+请通过 [GitHub Issues](https://github.com/zhangsubo/antigravity-chinese-patch/issues) 提交安装问题、翻译修正或功能建议，并提供：
 
 - 操作系统版本（macOS / Linux / Windows）、处理器类型及 Antigravity 版本。
 - 补丁版本、操作步骤和完整错误信息。
